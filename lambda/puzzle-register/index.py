@@ -42,6 +42,7 @@ def handler(event, context):
 
         # Extract parameters
         piece_count = body.get('pieceCount')
+        puzzle_name = body.get('puzzleName')
         file_name = body.get('fileName', 'puzzle.jpg')
         user_id = body.get('userId', 'anonymous')
 
@@ -51,9 +52,15 @@ def handler(event, context):
                 'error': 'pieceCount is required'
             })
 
+        if not puzzle_name:
+            return create_response(400, {
+                'error': 'puzzleName is required'
+            })
+
         # Call business logic
         result = puzzle_service.register_puzzle(
             piece_count=piece_count,
+            puzzle_name=puzzle_name,
             file_name=file_name,
             user_id=user_id
         )

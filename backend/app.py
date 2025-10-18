@@ -44,12 +44,25 @@ puzzle_service = PuzzleService(
 
 # Request/Response models
 class PuzzleCreateRequest(BaseModel):
+    puzzleName: str = Field(..., description="Puzzle project name", example="Mt. Fuji Landscape")
     pieceCount: int = Field(..., description="Number of puzzle pieces", example=300)
-    fileName: str = Field(default="puzzle.jpg", description="Image file name", example="my-puzzle.jpg")
     userId: str = Field(default="anonymous", description="User ID", example="user-123")
 
 
 class PuzzleCreateResponse(BaseModel):
+    puzzleId: str
+    puzzleName: str
+    pieceCount: int
+    status: str
+    message: str
+
+
+class UploadUrlRequest(BaseModel):
+    fileName: str = Field(default="puzzle.jpg", description="Image file name", example="my-puzzle.jpg")
+    userId: str = Field(default="anonymous", description="User ID", example="user-123")
+
+
+class UploadUrlResponse(BaseModel):
     puzzleId: str
     uploadUrl: str
     expiresIn: int
@@ -78,24 +91,55 @@ def root():
 })
 def create_puzzle(request: PuzzleCreateRequest):
     """
-    Create a new puzzle and get a pre-signed URL for image upload
+    Create a new puzzle (without image)
 
+    - **puzzleName**: Name of the puzzle project
     - **pieceCount**: Number of puzzle pieces (100, 300, 500, 1000, 2000)
-    - **fileName**: Name of the image file (optional, default: puzzle.jpg)
     - **userId**: User ID (optional, default: anonymous)
 
-    Returns a pre-signed URL that is valid for 5 minutes.
+    After creating the puzzle, use POST /puzzles/{puzzleId}/upload to upload an image.
     """
     try:
-        result = puzzle_service.register_puzzle(
+        result = puzzle_service.create_puzzle(
             piece_count=request.pieceCount,
-            file_name=request.fileName,
+            puzzle_name=request.puzzleName,
             user_id=request.userId
         )
         return result
 
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+    except Exception as e:
+        print(f"Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@app.post("/puzzles/{puzzle_id}/upload", response_model=UploadUrlResponse, responses={
+    400: {"model": ErrorResponse},
+    404: {"model": ErrorResponse},
+    500: {"model": ErrorResponse}
+})
+def upload_puzzle_image(puzzle_id: str, request: UploadUrlRequest):
+    """
+    Get a pre-signed URL to upload an image for an existing puzzle
+
+    - **puzzle_id**: Puzzle ID (path parameter)
+    - **fileName**: Name of the image file (optional, default: puzzle.jpg)
+    - **userId**: User ID (optional, default: anonymous)
+
+    Returns a pre-signed URL that is valid for 1 hour.
+    """
+    try:
+        result = puzzle_service.generate_upload_url(
+            puzzle_id=puzzle_id,
+            file_name=request.fileName,
+            user_id=request.userId
+        )
+        return result
+
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
     except Exception as e:
         print(f"Error: {str(e)}")

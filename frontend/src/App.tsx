@@ -1,13 +1,15 @@
-import PuzzleUpload from './components/PuzzleUpload'
+import { Routes, Route } from 'react-router-dom'
+import Home from './pages/Home'
+import PuzzleCreate from './pages/PuzzleCreate'
+import PuzzleDetail from './components/PuzzleDetail'
 
 function App() {
   return (
-    <div style={{ padding: '20px', maxWidth: '800px', margin: '0 auto' }}>
-      <h1>Jigsaw Puzzle Helper</h1>
-      <p>パズル登録システムへようこそ</p>
-
-      <PuzzleUpload />
-    </div>
+    <Routes>
+      <Route path="/" element={<Home />} />
+      <Route path="/puzzles/new" element={<PuzzleCreate />} />
+      <Route path="/puzzles/:puzzleId" element={<PuzzleDetail />} />
+    </Routes>
   )
 }
 

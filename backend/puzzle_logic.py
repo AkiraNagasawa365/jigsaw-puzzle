@@ -33,22 +33,22 @@ class PuzzleService:
         self.dynamodb = boto3.resource('dynamodb')
         self.puzzles_table = self.dynamodb.Table(puzzles_table_name)
 
-    def register_puzzle(
+    def create_puzzle(
         self,
         piece_count: int,
-        file_name: str = 'puzzle.jpg',
+        puzzle_name: str,
         user_id: str = 'anonymous'
     ) -> Dict[str, Any]:
         """
-        Register a new puzzle and generate a pre-signed URL for image upload
+        Create a new puzzle without image
 
         Args:
             piece_count: Number of puzzle pieces (100, 300, 500, 1000, 2000)
-            file_name: Name of the puzzle image file
+            puzzle_name: User-defined puzzle name (e.g., "Mt. Fuji Landscape")
             user_id: User ID (default: 'anonymous')
 
         Returns:
-            Dictionary containing puzzle ID, upload URL, and expiration time
+            Dictionary containing puzzle information
 
         Raises:
             ValueError: If piece_count is invalid
@@ -64,11 +64,69 @@ class PuzzleService:
         # Generate puzzle ID
         puzzle_id = str(uuid.uuid4())
 
+        # Create puzzle record in DynamoDB
+        current_time = datetime.utcnow().isoformat()
+
+        puzzle_item = {
+            'userId': user_id,
+            'puzzleId': puzzle_id,
+            'puzzleName': puzzle_name,
+            'pieceCount': piece_count,
+            'status': 'pending',  # pending -> uploaded -> processing -> completed
+            'createdAt': current_time,
+            'updatedAt': current_time
+        }
+
+        try:
+            self.puzzles_table.put_item(Item=puzzle_item)
+        except ClientError as e:
+            raise ClientError(
+                f"Failed to save puzzle to DynamoDB: {str(e)}",
+                operation_name='put_item'
+            )
+
+        print(f"Created puzzle: {puzzle_id} for user: {user_id}")
+
+        # Return success response
+        return {
+            'puzzleId': puzzle_id,
+            'puzzleName': puzzle_name,
+            'pieceCount': piece_count,
+            'status': 'pending',
+            'message': 'Puzzle created successfully. You can now upload an image.'
+        }
+
+    def generate_upload_url(
+        self,
+        puzzle_id: str,
+        file_name: str = 'puzzle.jpg',
+        user_id: str = 'anonymous'
+    ) -> Dict[str, Any]:
+        """
+        Generate a pre-signed URL for uploading an image to an existing puzzle
+
+        Args:
+            puzzle_id: Puzzle ID
+            file_name: Name of the puzzle image file
+            user_id: User ID (default: 'anonymous')
+
+        Returns:
+            Dictionary containing upload URL and expiration time
+
+        Raises:
+            ValueError: If puzzle not found
+            ClientError: If AWS operation fails
+        """
+        # Verify puzzle exists
+        puzzle = self.get_puzzle(user_id, puzzle_id)
+        if not puzzle:
+            raise ValueError(f"Puzzle not found: {puzzle_id}")
+
         # Generate S3 key
         file_extension = file_name.split('.')[-1] if '.' in file_name else 'jpg'
         s3_key = f"puzzles/{puzzle_id}.{file_extension}"
 
-        # Generate pre-signed URL for upload (valid for 5 minutes)
+        # Generate pre-signed URL for upload
         try:
             presigned_url = self.s3_client.generate_presigned_url(
                 'put_object',
@@ -85,29 +143,33 @@ class PuzzleService:
                 operation_name='generate_presigned_url'
             )
 
-        # Create puzzle record in DynamoDB
+        # Update puzzle record with file info
         current_time = datetime.utcnow().isoformat()
 
-        puzzle_item = {
-            'userId': user_id,
-            'puzzleId': puzzle_id,
-            'pieceCount': piece_count,
-            'fileName': file_name,
-            's3Key': s3_key,
-            'status': 'pending',  # pending -> processing -> completed
-            'createdAt': current_time,
-            'updatedAt': current_time
-        }
-
         try:
-            self.puzzles_table.put_item(Item=puzzle_item)
+            self.puzzles_table.update_item(
+                Key={
+                    'userId': user_id,
+                    'puzzleId': puzzle_id
+                },
+                UpdateExpression='SET fileName = :fn, s3Key = :s3k, #status = :st, updatedAt = :ua',
+                ExpressionAttributeNames={
+                    '#status': 'status'
+                },
+                ExpressionAttributeValues={
+                    ':fn': file_name,
+                    ':s3k': s3_key,
+                    ':st': 'uploaded',
+                    ':ua': current_time
+                }
+            )
         except ClientError as e:
             raise ClientError(
-                f"Failed to save puzzle to DynamoDB: {str(e)}",
-                operation_name='put_item'
+                f"Failed to update puzzle in DynamoDB: {str(e)}",
+                operation_name='update_item'
             )
 
-        print(f"Created puzzle: {puzzle_id} for user: {user_id}")
+        print(f"Generated upload URL for puzzle: {puzzle_id}")
 
         # Return success response
         return {
