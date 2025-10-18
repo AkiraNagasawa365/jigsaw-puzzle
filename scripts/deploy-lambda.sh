@@ -34,6 +34,12 @@ echo "Step 2: Copying backend/app directory..."
 mkdir -p backend
 cp -r ../../backend/app ./backend/
 
+echo "Step 2.5: Removing sensitive files from copied backend..."
+# .env ファイルや機密情報を含むファイルを削除（念のため）
+find ./backend -name ".env*" -type f -delete
+find ./backend -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
+find ./backend -name "*.pyc" -type f -delete
+
 echo "Step 3: Exporting dependencies from uv..."
 # uvからrequirements.txtを生成（Lambda用）
 cd ../..
@@ -41,7 +47,10 @@ uv export --no-hashes --format requirements-txt > lambda/puzzle-register/require
 cd lambda/puzzle-register
 
 echo "Step 4: Packaging Lambda function..."
-zip -r function.zip index.py backend/ requirements.txt -q
+# .env, __pycache__, .pyc ファイルを明示的に除外
+zip -r function.zip index.py backend/ requirements.txt \
+    -x "*.env*" "*/__pycache__/*" "*.pyc" "*.pyo" ".DS_Store" \
+    -q
 
 FILE_SIZE=$(du -h function.zip | cut -f1)
 echo "Package size: $FILE_SIZE"

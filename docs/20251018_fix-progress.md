@@ -1,13 +1,25 @@
 # 修正進捗管理
 
-最終更新: 2025-10-18
+最終更新: 2025-10-19
 
 ## 📋 進捗サマリー
 
 - **Total**: 70+ 件
-- **完了**: 1 件
+- **完了**: 4 件 (✅ CORS環境変数化、エラー情報露出防止、CloudFront構築、ディレクトリ構造リファクタリング)
 - **進行中**: 0 件
-- **未着手**: 69+ 件
+- **未着手**: 66+ 件
+
+## ⚠️ 重要な構造変更
+
+**バックエンドのディレクトリ構造が大幅に変更されました:**
+- `backend/app.py` → `backend/app/api/main.py`
+- `backend/puzzle_logic.py` → `backend/app/services/puzzle_service.py`
+- `backend/schemas.py` → `backend/app/core/schemas.py`
+- 新規: `backend/app/core/config.py` (環境変数の一元管理)
+- 新規: `backend/app/api/routes/puzzles.py` (ルート定義)
+
+**フロントエンドも機能別フォルダ構造に移行:**
+- `frontend/src/pages/` → `frontend/src/pages/puzzles/` (パズル関連ページ)
 
 ---
 
@@ -16,37 +28,65 @@
 ### 今すぐ実施（所要時間: 2時間）
 
 - [x] **1.1 CORS設定を環境変数化** (30分) ✅ 2025-10-18 完了
-  - ファイル: `backend/app.py`, `lambda/puzzle-register/index.py`, `terraform/`
+  - ファイル: `backend/app/api/main.py`, `backend/app/core/config.py`, `lambda/puzzle-register/index.py`, `terraform/`
   - 参照: [code-review.md#12-cors設定]
   - 変更内容:
-    - `backend/app.py`: ALLOWED_ORIGINS環境変数を追加
-    - `lambda/puzzle-register/index.py`: ALLOWED_ORIGINS環境変数を追加
+    - `backend/app/core/config.py`: Settings クラスで ALLOWED_ORIGINS を環境変数から読み込み
+    - `backend/app/api/main.py`: settings.allowed_origins を使用したCORS設定
+    - `lambda/puzzle-register/index.py`: 動的CORS実装（リクエストOriginベース）
     - `terraform/modules/lambda/`: allowed_origins変数を追加
-    - `terraform/environments/dev/variables.tf`: デフォルトを["http://localhost:3000"]に変更
-    - `backend/.env.example`: ALLOWED_ORIGINS追加
+    - `terraform/environments/dev/variables.tf`: 複数オリジン対応（localhost:3000, 5173, CloudFront）
+    - `backend/.env.example`: ALLOWED_ORIGINS追加（デフォルト: localhost:3000,5173）
     - `README.md`: 環境変数の説明を追加
 
-- [ ] **1.2 エラー情報露出の防止** (30分)
-  - ファイル: `backend/app.py`, `lambda/puzzle-register/index.py`
+- [x] **1.2 エラー情報露出の防止** (30分) ✅ 2025-10-19 完了
+  - ファイル: `backend/app/api/routes/puzzles.py`, `lambda/puzzle-register/index.py`
   - 参照: [code-review.md#13-エラー情報の露出]
+  - 変更内容:
+    - `backend/app/api/routes/puzzles.py`: 本番環境で `settings.is_production` チェック、エラー詳細を隠す
+    - `lambda/puzzle-register/index.py`: 同様に ENVIRONMENT 環境変数で制御
+    - 開発環境: エラー詳細を返す
+    - 本番環境: "Internal server error" のみ返す
 
 - [ ] **1.3 構造化ログの導入** (1時間)
-  - ファイル: `backend/app.py`, `backend/puzzle_logic.py`, `lambda/puzzle-register/index.py`
+  - ファイル: `backend/app/api/main.py`, `backend/app/services/puzzle_service.py`, `backend/app/api/routes/puzzles.py`, `lambda/puzzle-register/index.py`
   - 参照: [code-review.md#31-ログ管理]
+  - 現状: `print()` 文を使用（非構造化）
+  - 必要な作業:
+    - Python標準 `logging` モジュール導入
+    - JSON形式のログ出力（CloudWatch Logsで検索しやすい）
+    - ログレベル設定（DEBUG, INFO, WARNING, ERROR）
+    - リクエストIDの追加（トレーシング用）
 
 ### 今週中に実施（所要時間: 3時間）
 
 - [ ] **1.4 Input validationの強化** (1時間)
-  - ファイル: `backend/schemas.py`
+  - ファイル: `backend/app/core/schemas.py`
   - 参照: [code-review.md#14-input-validation]
+  - 現状: Pydanticによる基本的なバリデーション実装済み
+    - `pieceCount`: ge=100, le=2000
+    - `puzzleName`: min_length=1, max_length=100
+  - 追加検討項目:
+    - ファイル名のサニタイゼーション（パストラバーサル対策）
+    - pieceCount を有効な値リスト [100, 300, 500, 1000, 2000] に限定
+    - ファイルサイズ制限の明示化
+    - 画像形式のバリデーション（MIME typeチェック）
 
 - [ ] **1.5 Pre-signed URLの有効期限短縮** (15分)
-  - ファイル: `backend/puzzle_logic.py`
+  - ファイル: `backend/app/services/puzzle_service.py`
   - 参照: [code-review.md#15-pre-signed-urlの有効期限]
+  - 現状: `ExpiresIn=3600` (1時間)
+  - 推奨: `ExpiresIn=900` (15分) または `ExpiresIn=300` (5分)
+  - 変更箇所: `puzzle_service.py` の `generate_presigned_url()` メソッド
 
 - [ ] **1.6 Rate Limitingの実装** (2時間)
-  - ファイル: API Gateway設定, Lambda
+  - ファイル: `terraform/modules/api_gateway/` (Terraform設定)
   - 参照: [code-review.md#16-rate-limiting]
+  - 必要な作業:
+    - API Gateway Usage Plan作成
+    - Throttle設定（例: 100リクエスト/秒、バースト200）
+    - Quota設定（例: 10,000リクエスト/日）
+    - API Keyの発行と管理
 
 ---
 
@@ -115,27 +155,46 @@
 ## 🟢 Phase 4: パフォーマンス最適化（2-3週間）
 
 - [ ] **4.1 ページネーションの実装** (4時間)
-  - バックエンド: `puzzle_logic.py`
-  - フロントエンド: `PuzzleList.tsx`
+  - バックエンド: `backend/app/services/puzzle_service.py`
+  - フロントエンド: `frontend/src/components/PuzzleList.tsx`
   - 参照: [code-review.md#21-ページネーション]
+  - 必要な作業:
+    - DynamoDB クエリに `Limit` と `LastEvaluatedKey` を追加
+    - フロントエンドでページネーションUIを実装
 
 - [ ] **4.2 画像最適化Lambdaの追加** (8時間)
-  - 新規Lambda関数
-  - Pillowでリサイズ
+  - 新規Lambda関数作成
+  - Pillowライブラリでリサイズ・圧縮
   - 参照: [code-review.md#22-画像最適化]
+  - 必要な作業:
+    - S3イベントトリガーの設定
+    - サムネイル生成（複数サイズ）
+    - WebP変換の検討
 
-- [ ] **4.3 CloudFront CDNの設定** (4時間)
-  - Terraform設定
-  - カスタムドメイン
+- [x] **4.3 CloudFront CDNの設定** (4時間) ✅ 2025-10-18 完了
+  - Terraform設定: `terraform/modules/frontend/`
+  - カスタムドメイン: 未設定（将来対応）
   - 参照: [code-review.md#23-cdn]
+  - 変更内容:
+    - CloudFront Distribution作成
+    - S3 OAC (Origin Access Control) 設定
+    - デプロイスクリプト作成: `scripts/deploy-frontend.sh`
+    - 本番URL: https://dykwhpbm0bhdv.cloudfront.net
+    - キャッシュ設定: 静的ファイル1年、index.html無キャッシュ
 
 - [ ] **4.4 Lambda Layerの導入** (3時間)
   - boto3をLayerに分離
   - 参照: [code-review.md#24-lambda-cold-start]
+  - 必要な作業:
+    - Lambda Layer作成（共通ライブラリ）
+    - デプロイパッケージサイズ削減
 
 - [ ] **4.5 DynamoDB GSIの活用** (2時間)
   - CreatedAtIndexの使用
   - 参照: [code-review.md#25-dynamodbの最適化]
+  - 必要な作業:
+    - GSI作成（Terraformで定義）
+    - ソート順での取得（新しい順）
 
 ---
 
@@ -168,34 +227,58 @@
 ### 保守性
 
 - [ ] **6.1 環境変数管理の改善** (2時間)
-  - pydantic-settings導入
+  - ファイル: `backend/app/core/config.py`
+  - pydantic-settings導入（オプション）
   - 参照: [code-review.md#32-環境変数管理]
+  - 現状: 独自Settingsクラスで実装済み
+  - 改善余地: pydantic-settingsでより厳密な型チェック
 
 - [ ] **6.2 エラーハンドリングの一貫性** (2時間)
+  - ファイル: `backend/app/api/routes/puzzles.py`, `backend/app/services/puzzle_service.py`
   - 参照: [code-review.md#33-エラーハンドリングの一貫性]
+  - 必要な作業:
+    - カスタム例外クラスの定義
+    - 例外ハンドラーの統一
+    - エラーレスポンス形式の標準化
 
 - [ ] **6.3 未使用コードの削除** (1時間)
-  - PIECES_TABLE_NAMEの整理
+  - ファイル: `backend/app/core/config.py`, `backend/app/services/puzzle_service.py`
+  - PIECES_TABLE_NAMEの整理（現在未使用）
   - 参照: [code-review.md#34-未使用コード]
+  - 検討: 将来のピース処理機能で使用予定か確認
 
 - [ ] **6.4 型チェックの強化** (2時間)
-  - mypy設定
-  - TypeScript strict mode
+  - バックエンド: mypy設定追加
+  - フロントエンド: TypeScript strict mode有効化
   - 参照: [code-review.md#43-型チェック]
+  - 必要な作業:
+    - `pyproject.toml` にmypy設定追加
+    - `tsconfig.json` の strict: true 設定
 
 ### フロントエンド
 
 - [ ] **6.5 スタイリングの改善** (4時間)
-  - CSS Modules導入
+  - ファイル: `frontend/src/pages/puzzles/*.tsx`, `frontend/src/components/*.tsx`
+  - CSS Modules または Tailwind CSS導入
   - インラインスタイル削減
   - 参照: [code-review.md#61-スタイリング]
+  - 現状: 全てインラインスタイル
 
 - [ ] **6.6 エラーハンドリング改善** (2時間)
+  - ファイル: `frontend/src/components/PuzzleList.tsx`, `frontend/src/pages/puzzles/*.tsx`
   - 参照: [code-review.md#62-エラーハンドリング]
+  - 必要な作業:
+    - エラーバウンダリーの実装
+    - トースト通知の追加
+    - リトライ機能の実装
 
 - [ ] **6.7 状態管理の改善** (6時間)
-  - React Query導入検討
+  - React Query (TanStack Query) 導入検討
   - 参照: [code-review.md#63-状態管理]
+  - メリット:
+    - サーバー状態のキャッシュ
+    - 自動リフェッチ
+    - ローディング・エラー状態の統一管理
 
 ### アーキテクチャ
 
@@ -217,17 +300,46 @@
 
 ## 📝 修正履歴
 
+### 2025-10-19
+- **大規模リファクタリング完了**
+  - バックエンド構造変更: `backend/app.py` → `backend/app/` (機能別フォルダ構造)
+  - フロントエンド構造変更: `pages/` → `pages/puzzles/` (機能別フォルダ構造)
+  - 環境変数管理の一元化: `backend/app/core/config.py` 作成
+  - RESTful API設計改善: `/users/{userId}/puzzles` エンドポイント追加
+- **Phase 1 完了項目:**
+  - 1.1 CORS設定を環境変数化 ✅
+  - 1.2 エラー情報露出の防止 ✅
+- **Phase 4 完了項目:**
+  - 4.3 CloudFront CDN設定 ✅
+- fix-progress.md を現在の実装に合わせて全面更新
+  - 全てのファイルパスを更新
+  - 現状分析を追加
+  - 必要な作業を詳細化
+
 ### 2025-10-18
 - fix-progress.md を作成
 - レビュー完了、修正開始準備完了
+- Phase 1.1 CORS設定完了
 
 ---
 
 ## 次のアクション
 
-**今から始める項目:**
-1. ✅ CORS設定を環境変数化（30分）
+**すぐに着手できる項目（Phase 1 残り）:**
+1. **1.3 構造化ログの導入** (1時間) - `print()` を `logging` モジュールに置き換え
+2. **1.5 Pre-signed URLの有効期限短縮** (15分) - 3600秒 → 900秒に変更
+
+**今週中に実施すべき項目:**
+3. **1.4 Input validationの強化** (1時間) - Pydanticバリデーションの追加
+4. **1.6 Rate Limitingの実装** (2時間) - API Gateway設定
 
 **準備が必要な項目:**
 - AWS Cognito（Phase 2で実施）
 - テストフレームワーク（Phase 3で実施）
+- 画像処理Lambda（Phase 4で実施）
+
+**完了済み項目:**
+- ✅ CORS環境変数化（Phase 1.1）
+- ✅ エラー情報露出防止（Phase 1.2）
+- ✅ CloudFront構築（Phase 4.3）
+- ✅ ディレクトリ構造リファクタリング

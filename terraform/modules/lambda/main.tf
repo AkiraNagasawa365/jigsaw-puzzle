@@ -15,7 +15,8 @@ resource "aws_lambda_function" "puzzle_register" {
       PUZZLES_TABLE_NAME  = var.puzzles_table_name
       PIECES_TABLE_NAME   = var.pieces_table_name
       ENVIRONMENT         = var.environment
-      ALLOWED_ORIGINS     = var.allowed_origins
+      # allowed_origins は list(string) なので、カンマ区切りの文字列に変換
+      ALLOWED_ORIGINS     = join(",", var.allowed_origins)
     }
   }
 
