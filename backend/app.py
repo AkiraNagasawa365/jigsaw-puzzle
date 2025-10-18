@@ -6,11 +6,16 @@ Run with: uvicorn app:app --reload
 """
 
 import os
-from typing import Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
 from puzzle_logic import PuzzleService
+from schemas import (
+    PuzzleCreateRequest,
+    PuzzleCreateResponse,
+    UploadUrlRequest,
+    UploadUrlResponse,
+    ErrorResponse
+)
 
 # FastAPIアプリの初期化
 app = FastAPI(
@@ -40,38 +45,6 @@ puzzle_service = PuzzleService(
     puzzles_table_name=PUZZLES_TABLE_NAME,
     environment=ENVIRONMENT
 )
-
-
-# リクエスト/レスポンスモデル
-class PuzzleCreateRequest(BaseModel):
-    puzzleName: str = Field(..., description="Puzzle project name", example="Mt. Fuji Landscape")
-    pieceCount: int = Field(..., description="Number of puzzle pieces", example=300)
-    userId: str = Field(default="anonymous", description="User ID", example="user-123")
-
-
-class PuzzleCreateResponse(BaseModel):
-    puzzleId: str
-    puzzleName: str
-    pieceCount: int
-    status: str
-    message: str
-
-
-class UploadUrlRequest(BaseModel):
-    fileName: str = Field(default="puzzle.jpg", description="Image file name", example="my-puzzle.jpg")
-    userId: str = Field(default="anonymous", description="User ID", example="user-123")
-
-
-class UploadUrlResponse(BaseModel):
-    puzzleId: str
-    uploadUrl: str
-    expiresIn: int
-    message: str
-
-
-class ErrorResponse(BaseModel):
-    error: str
-    details: Optional[str] = None
 
 
 # APIエンドポイント

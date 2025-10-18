@@ -78,6 +78,8 @@ frontend/build/
 frontend/.vite/
 frontend/.turbo/
 frontend/coverage/
+frontend/.env.local
+frontend/.env.*.local
 
 # Node.js
 node_modules/

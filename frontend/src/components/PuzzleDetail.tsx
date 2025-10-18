@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import type { Puzzle, UploadUrlResponse } from '../types/puzzle'
+import { API_BASE_URL } from '../config/api'
 
 const PuzzleDetail = () => {
   const { puzzleId } = useParams<{ puzzleId: string }>()
@@ -25,7 +26,7 @@ const PuzzleDetail = () => {
     setError('')
 
     try {
-      const response = await fetch(`http://localhost:8000/puzzles/${id}?user_id=anonymous`)
+      const response = await fetch(`${API_BASE_URL}/puzzles/${id}?user_id=anonymous`)
 
       if (!response.ok) {
         throw new Error('パズルの取得に失敗しました')
@@ -58,7 +59,7 @@ const PuzzleDetail = () => {
 
     try {
       // Step 1: アップロードURL取得
-      const urlResponse = await fetch(`http://localhost:8000/puzzles/${puzzleId}/upload`, {
+      const urlResponse = await fetch(`${API_BASE_URL}/puzzles/${puzzleId}/upload`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

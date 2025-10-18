@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { PuzzleCreateRequest, PuzzleCreateResponse } from '../types/puzzle'
+import { API_BASE_URL } from '../config/api'
 
 const PuzzleCreate = () => {
   const navigate = useNavigate()
@@ -25,7 +26,7 @@ const PuzzleCreate = () => {
         userId: 'anonymous'
       }
 
-      const response = await fetch('http://localhost:8000/puzzles', {
+      const response = await fetch(`${API_BASE_URL}/puzzles`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

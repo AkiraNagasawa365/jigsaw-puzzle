@@ -43,7 +43,6 @@ def handler(event, context):
         # パラメータを抽出
         piece_count = body.get('pieceCount')
         puzzle_name = body.get('puzzleName')
-        file_name = body.get('fileName', 'puzzle.jpg')
         user_id = body.get('userId', 'anonymous')
 
         # 必須パラメータを検証
@@ -57,11 +56,10 @@ def handler(event, context):
                 'error': 'puzzleName is required'
             })
 
-        # ビジネスロジックを呼び出し
-        result = puzzle_service.register_puzzle(
+        # ビジネスロジックを呼び出し（画像なしでパズル作成）
+        result = puzzle_service.create_puzzle(
             piece_count=piece_count,
             puzzle_name=puzzle_name,
-            file_name=file_name,
             user_id=user_id
         )
 

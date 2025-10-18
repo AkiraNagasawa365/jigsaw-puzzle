@@ -112,6 +112,8 @@ npm run dev
 
 ### 4. AWSへのデプロイ
 
+#### バックエンド（Lambda）
+
 ```bash
 # Terraformでインフラを作成
 cd terraform/environments/dev
@@ -123,6 +125,23 @@ terraform apply
 cd ../../..
 ./scripts/deploy-lambda.sh
 ```
+
+#### フロントエンド（本番ビルド）
+
+```bash
+cd frontend
+
+# 1. 本番環境のAPI URLを設定
+# frontend/.env.production を編集してAPI Gateway URLを設定
+
+# 2. ビルド
+npm run build
+
+# 3. dist/ フォルダが生成される
+# この中身をS3やCloudFrontなどにデプロイ
+```
+
+**注意:** フロントエンドのデプロイ先（S3 + CloudFront など）のインフラは今後実装予定です。
 
 ## 使い方
 
@@ -229,6 +248,52 @@ uv run black backend/ lambda/
 
 # Lintチェック
 uv run ruff check backend/ lambda/
+```
+
+## フロントエンドとバックエンドの接続
+
+フロントエンドは環境変数でバックエンドのAPIエンドポイントを設定します。
+
+### 環境変数の設定
+
+#### ローカル開発（デフォルト）
+
+`frontend/.env` ファイルで設定済み：
+```bash
+VITE_API_BASE_URL=http://localhost:8000
+```
+
+#### 本番環境（Lambda + API Gateway）
+
+`frontend/.env.production` を編集：
+```bash
+# 実際のAPI Gateway URLに変更してください
+VITE_API_BASE_URL=https://your-api-id.execute-api.ap-northeast-1.amazonaws.com/dev
+```
+
+#### カスタム設定（開発者ごと）
+
+`frontend/.env.local` を作成（gitignoreされています）：
+```bash
+VITE_API_BASE_URL=http://localhost:9000
+```
+
+### 環境変数の優先順位
+
+Viteは以下の優先順位で環境変数を読み込みます：
+1. `.env.local` （最優先、gitignore対象）
+2. `.env.[mode]` （`.env.production`など）
+3. `.env` （デフォルト）
+
+### 実装の詳細
+
+全てのAPIリクエストは `frontend/src/config/api.ts` で定義された `API_BASE_URL` を使用：
+
+```typescript
+import { API_BASE_URL } from '../config/api'
+
+// 使用例
+const response = await fetch(`${API_BASE_URL}/puzzles`)
 ```
 
 ## API エンドポイント

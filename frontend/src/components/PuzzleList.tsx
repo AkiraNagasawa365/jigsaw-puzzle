@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { Puzzle } from '../types/puzzle'
+import { API_BASE_URL } from '../config/api'
 
 interface PuzzleListProps {
   userId?: string
@@ -16,7 +17,7 @@ const PuzzleList = ({ userId = 'anonymous', onPuzzleClick }: PuzzleListProps) =>
     setError('')
 
     try {
-      const response = await fetch(`http://localhost:8000/users/${userId}/puzzles`)
+      const response = await fetch(`${API_BASE_URL}/users/${userId}/puzzles`)
 
       if (!response.ok) {
         throw new Error('パズル一覧の取得に失敗しました')
