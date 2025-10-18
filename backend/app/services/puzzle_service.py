@@ -11,6 +11,11 @@ from typing import Dict, Any, Optional
 import boto3
 from botocore.exceptions import ClientError
 
+from app.core.logger import setup_logger
+
+# ロガーの初期化
+logger = setup_logger(__name__)
+
 
 class PuzzleService:
     """Service class for puzzle operations"""
@@ -80,12 +85,28 @@ class PuzzleService:
         try:
             self.puzzles_table.put_item(Item=puzzle_item)
         except ClientError as e:
+            logger.error(
+                "Failed to save puzzle to DynamoDB",
+                extra={
+                    "puzzle_id": puzzle_id,
+                    "user_id": user_id,
+                    "error": str(e)
+                }
+            )
             raise ClientError(
                 f"Failed to save puzzle to DynamoDB: {str(e)}",
                 operation_name='put_item'
             )
 
-        print(f"Created puzzle: {puzzle_id} for user: {user_id}")
+        logger.info(
+            f"Created puzzle successfully",
+            extra={
+                "puzzle_id": puzzle_id,
+                "user_id": user_id,
+                "piece_count": piece_count,
+                "puzzle_name": puzzle_name
+            }
+        )
 
         # 成功レスポンスを返す
         return {
@@ -164,12 +185,28 @@ class PuzzleService:
                 }
             )
         except ClientError as e:
+            logger.error(
+                "Failed to update puzzle in DynamoDB",
+                extra={
+                    "puzzle_id": puzzle_id,
+                    "user_id": user_id,
+                    "error": str(e)
+                }
+            )
             raise ClientError(
                 f"Failed to update puzzle in DynamoDB: {str(e)}",
                 operation_name='update_item'
             )
 
-        print(f"Generated upload URL for puzzle: {puzzle_id}")
+        logger.info(
+            "Generated upload URL successfully",
+            extra={
+                "puzzle_id": puzzle_id,
+                "user_id": user_id,
+                "file_name": file_name,
+                "s3_key": s3_key
+            }
+        )
 
         # 成功レスポンスを返す
         return {
@@ -199,7 +236,14 @@ class PuzzleService:
             )
             return response.get('Item')
         except ClientError as e:
-            print(f"Error getting puzzle: {str(e)}")
+            logger.error(
+                "Error getting puzzle",
+                extra={
+                    "puzzle_id": puzzle_id,
+                    "user_id": user_id,
+                    "error": str(e)
+                }
+            )
             return None
 
     def list_puzzles(self, user_id: str) -> list:
@@ -221,5 +265,11 @@ class PuzzleService:
             )
             return response.get('Items', [])
         except ClientError as e:
-            print(f"Error listing puzzles: {str(e)}")
+            logger.error(
+                "Error listing puzzles",
+                extra={
+                    "user_id": user_id,
+                    "error": str(e)
+                }
+            )
             return []

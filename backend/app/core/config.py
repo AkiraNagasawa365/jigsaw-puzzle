@@ -15,6 +15,7 @@ from dotenv import load_dotenv
 env_path = Path(__file__).parent.parent.parent / '.env'
 if env_path.exists():
     load_dotenv(dotenv_path=env_path)
+    # ログ設定前なので、ここだけはprintを使用
     print(f"✅ Loaded environment variables from {env_path}")
 
 

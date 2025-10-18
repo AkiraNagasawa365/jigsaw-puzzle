@@ -5,9 +5,9 @@
 ## 📋 進捗サマリー
 
 - **Total**: 70+ 件
-- **完了**: 4 件 (✅ CORS環境変数化、エラー情報露出防止、CloudFront構築、ディレクトリ構造リファクタリング)
+- **完了**: 5 件 (✅ CORS環境変数化、エラー情報露出防止、構造化ログ導入、CloudFront構築、ディレクトリ構造リファクタリング)
 - **進行中**: 0 件
-- **未着手**: 66+ 件
+- **未着手**: 65+ 件
 
 ## ⚠️ 重要な構造変更
 
@@ -16,6 +16,7 @@
 - `backend/puzzle_logic.py` → `backend/app/services/puzzle_service.py`
 - `backend/schemas.py` → `backend/app/core/schemas.py`
 - 新規: `backend/app/core/config.py` (環境変数の一元管理)
+- 新規: `backend/app/core/logger.py` (構造化ログ設定) ✅ 2025-10-19
 - 新規: `backend/app/api/routes/puzzles.py` (ルート定義)
 
 **フロントエンドも機能別フォルダ構造に移行:**
@@ -48,15 +49,23 @@
     - 開発環境: エラー詳細を返す
     - 本番環境: "Internal server error" のみ返す
 
-- [ ] **1.3 構造化ログの導入** (1時間)
-  - ファイル: `backend/app/api/main.py`, `backend/app/services/puzzle_service.py`, `backend/app/api/routes/puzzles.py`, `lambda/puzzle-register/index.py`
+- [x] **1.3 構造化ログの導入** (1時間) ✅ 2025-10-19 完了
+  - ファイル: `backend/app/core/logger.py` (新規), `backend/app/services/puzzle_service.py`, `backend/app/api/routes/puzzles.py`, `lambda/puzzle-register/index.py`
   - 参照: [code-review.md#31-ログ管理]
-  - 現状: `print()` 文を使用（非構造化）
-  - 必要な作業:
-    - Python標準 `logging` モジュール導入
-    - JSON形式のログ出力（CloudWatch Logsで検索しやすい）
-    - ログレベル設定（DEBUG, INFO, WARNING, ERROR）
-    - リクエストIDの追加（トレーシング用）
+  - 変更内容:
+    - `backend/app/core/logger.py`: 構造化ログモジュール作成
+      - `JSONFormatter`: CloudWatch Logs向けJSON形式出力
+      - `setup_logger()`: 環境に応じたロガー初期化（dev: 人間が読みやすい形式、prod: JSON形式）
+      - ログレベル: 環境変数 `LOG_LEVEL` で制御（デフォルト: INFO）
+    - `backend/app/services/puzzle_service.py`: 全ての `print()` を `logger.info/error()` に置き換え
+      - コンテキスト情報追加: puzzle_id, user_id, piece_count, error など
+    - `backend/app/api/routes/puzzles.py`: エラーハンドリングで構造化ログ追加
+    - `lambda/puzzle-register/index.py`: Lambda関数でも同じロガーを使用
+      - Lambda invocation, validation error, unexpected error のログ追加
+      - request_id をログに含める
+    - 動作確認:
+      - 開発環境: `2025-10-19 03:40:25 [INFO] app.services.puzzle_service - Created puzzle successfully`
+      - 本番環境: `{"timestamp": "2025-10-18T18:39:26.843024Z", "level": "INFO", "logger": "test", "message": "Production log test", "puzzle_id": "test-123", "user_id": "test-user"}`
 
 ### 今週中に実施（所要時間: 3時間）
 

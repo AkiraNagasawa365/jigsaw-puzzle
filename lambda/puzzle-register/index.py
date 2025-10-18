@@ -13,6 +13,10 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'backend'))
 
 from app.services.puzzle_service import PuzzleService
+from app.core.logger import setup_logger
+
+# ロガーの初期化
+logger = setup_logger(__name__)
 
 # 環境変数
 S3_BUCKET_NAME = os.environ['S3_BUCKET_NAME']
@@ -41,7 +45,14 @@ def handler(event, context):
 
     This is a thin wrapper around puzzle_logic.PuzzleService
     """
-    print(f"Event: {json.dumps(event)}")
+    logger.info(
+        "Lambda invoked",
+        extra={
+            "request_id": context.request_id if context else None,
+            "http_method": event.get('httpMethod'),
+            "path": event.get('path')
+        }
+    )
 
     try:
         # リクエストボディを解析
@@ -75,16 +86,31 @@ def handler(event, context):
 
     except ValueError as e:
         # バリデーションエラー
-        print(f"Validation error: {str(e)}")
+        logger.warning(
+            "Validation error",
+            extra={
+                "request_id": context.request_id if context else None,
+                "error": str(e),
+                "piece_count": body.get('pieceCount'),
+                "puzzle_name": body.get('puzzleName'),
+                "user_id": body.get('userId', 'anonymous')
+            }
+        )
         return create_response(event, 400, {
             'error': str(e)
         })
 
     except Exception as e:
         # 予期しないエラー
-        print(f"Error: {str(e)}")
         import traceback
-        traceback.print_exc()
+        logger.error(
+            "Unexpected error in Lambda handler",
+            extra={
+                "request_id": context.request_id if context else None,
+                "error": str(e),
+                "traceback": traceback.format_exc()
+            }
+        )
 
         # 本番環境ではエラー詳細を隠す
         error_body = {'error': 'Internal server error'}

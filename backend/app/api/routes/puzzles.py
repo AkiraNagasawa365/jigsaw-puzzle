@@ -7,6 +7,7 @@ Puzzle API routes
 from fastapi import APIRouter, HTTPException
 
 from app.core.config import settings
+from app.core.logger import setup_logger
 from app.core.schemas import (
     PuzzleCreateRequest,
     PuzzleCreateResponse,
@@ -16,6 +17,8 @@ from app.core.schemas import (
 )
 from app.services.puzzle_service import PuzzleService
 
+# ロガーの初期化
+logger = setup_logger(__name__)
 
 # ルーターの作成
 router = APIRouter(prefix="/puzzles", tags=["puzzles"])
@@ -54,7 +57,15 @@ def create_puzzle(request: PuzzleCreateRequest):
         raise HTTPException(status_code=400, detail=str(e))
 
     except Exception as e:
-        print(f"Error: {str(e)}")
+        logger.error(
+            "Error creating puzzle",
+            extra={
+                "puzzle_name": request.puzzleName,
+                "piece_count": request.pieceCount,
+                "user_id": request.userId,
+                "error": str(e)
+            }
+        )
         # 本番環境ではエラー詳細を隠す
         if settings.is_production:
             raise HTTPException(status_code=500, detail="Internal server error")
@@ -89,7 +100,15 @@ def upload_puzzle_image(puzzle_id: str, request: UploadUrlRequest):
         raise HTTPException(status_code=404, detail=str(e))
 
     except Exception as e:
-        print(f"Error: {str(e)}")
+        logger.error(
+            "Error generating upload URL",
+            extra={
+                "puzzle_id": puzzle_id,
+                "file_name": request.fileName,
+                "user_id": request.userId,
+                "error": str(e)
+            }
+        )
         # 本番環境ではエラー詳細を隠す
         if settings.is_production:
             raise HTTPException(status_code=500, detail="Internal server error")
