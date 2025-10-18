@@ -28,7 +28,7 @@ class PuzzleService:
         self.puzzles_table_name = puzzles_table_name
         self.environment = environment
 
-        # Initialize AWS clients
+        # AWSクライアントの初期化
         self.s3_client = boto3.client('s3')
         self.dynamodb = boto3.resource('dynamodb')
         self.puzzles_table = self.dynamodb.Table(puzzles_table_name)
@@ -54,17 +54,17 @@ class PuzzleService:
             ValueError: If piece_count is invalid
             ClientError: If AWS operation fails
         """
-        # Validate piece count
+        # ピース数を検証
         valid_piece_counts = [100, 300, 500, 1000, 2000]
         if piece_count not in valid_piece_counts:
             raise ValueError(
                 f"pieceCount must be one of: {', '.join(map(str, valid_piece_counts))}"
             )
 
-        # Generate puzzle ID
+        # パズルIDを生成
         puzzle_id = str(uuid.uuid4())
 
-        # Create puzzle record in DynamoDB
+        # DynamoDBにパズルレコードを作成
         current_time = datetime.utcnow().isoformat()
 
         puzzle_item = {
@@ -87,7 +87,7 @@ class PuzzleService:
 
         print(f"Created puzzle: {puzzle_id} for user: {user_id}")
 
-        # Return success response
+        # 成功レスポンスを返す
         return {
             'puzzleId': puzzle_id,
             'puzzleName': puzzle_name,
@@ -117,16 +117,16 @@ class PuzzleService:
             ValueError: If puzzle not found
             ClientError: If AWS operation fails
         """
-        # Verify puzzle exists
+        # パズルの存在を確認
         puzzle = self.get_puzzle(user_id, puzzle_id)
         if not puzzle:
             raise ValueError(f"Puzzle not found: {puzzle_id}")
 
-        # Generate S3 key
+        # S3キーを生成
         file_extension = file_name.split('.')[-1] if '.' in file_name else 'jpg'
         s3_key = f"puzzles/{puzzle_id}.{file_extension}"
 
-        # Generate pre-signed URL for upload
+        # アップロード用のpre-signed URLを生成
         try:
             presigned_url = self.s3_client.generate_presigned_url(
                 'put_object',
@@ -135,7 +135,7 @@ class PuzzleService:
                     'Key': s3_key,
                     'ContentType': f'image/{file_extension}'
                 },
-                ExpiresIn=3600  # 1 hour
+                ExpiresIn=3600  # 1時間
             )
         except ClientError as e:
             raise ClientError(
@@ -143,7 +143,7 @@ class PuzzleService:
                 operation_name='generate_presigned_url'
             )
 
-        # Update puzzle record with file info
+        # ファイル情報でパズルレコードを更新
         current_time = datetime.utcnow().isoformat()
 
         try:
@@ -171,7 +171,7 @@ class PuzzleService:
 
         print(f"Generated upload URL for puzzle: {puzzle_id}")
 
-        # Return success response
+        # 成功レスポンスを返す
         return {
             'puzzleId': puzzle_id,
             'uploadUrl': presigned_url,

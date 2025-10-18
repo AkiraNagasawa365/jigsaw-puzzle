@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from puzzle_logic import PuzzleService
 
-# Initialize FastAPI app
+# FastAPIアプリの初期化
 app = FastAPI(
     title="Jigsaw Puzzle API",
     description="API for managing jigsaw puzzles",
@@ -34,7 +34,7 @@ PUZZLES_TABLE_NAME = os.environ.get('PUZZLES_TABLE_NAME', 'jigsaw-puzzle-dev-puz
 PIECES_TABLE_NAME = os.environ.get('PIECES_TABLE_NAME', 'jigsaw-puzzle-dev-pieces')
 ENVIRONMENT = os.environ.get('ENVIRONMENT', 'dev')
 
-# Initialize service
+# サービスの初期化
 puzzle_service = PuzzleService(
     s3_bucket_name=S3_BUCKET_NAME,
     puzzles_table_name=PUZZLES_TABLE_NAME,
@@ -42,7 +42,7 @@ puzzle_service = PuzzleService(
 )
 
 
-# Request/Response models
+# リクエスト/レスポンスモデル
 class PuzzleCreateRequest(BaseModel):
     puzzleName: str = Field(..., description="Puzzle project name", example="Mt. Fuji Landscape")
     pieceCount: int = Field(..., description="Number of puzzle pieces", example=300)
@@ -74,7 +74,7 @@ class ErrorResponse(BaseModel):
     details: Optional[str] = None
 
 
-# API Endpoints
+# APIエンドポイント
 @app.get("/")
 def root():
     """Health check endpoint"""
@@ -177,7 +177,7 @@ def list_puzzles(user_id: str):
     }
 
 
-# Debug/Development endpoints
+# デバッグ/開発用エンドポイント
 @app.get("/debug/config")
 def get_config():
     """Get current configuration (development only)"""
@@ -189,7 +189,7 @@ def get_config():
     }
 
 
-# Run locally with: uvicorn app:app --reload --host 0.0.0.0 --port 8000
+# ローカル実行: uvicorn app:app --reload --host 0.0.0.0 --port 8000
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
