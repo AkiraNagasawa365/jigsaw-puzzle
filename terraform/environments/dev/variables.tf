@@ -19,5 +19,9 @@ variable "environment" {
 variable "allowed_origins" {
   description = "Allowed origins for CORS (S3 and Lambda)"
   type        = list(string)
-  default     = ["http://localhost:3000"]
+  default     = [
+    "http://localhost:3000",
+    "http://localhost:5173",  # Vite dev server
+    "https://dykwhpbm0bhdv.cloudfront.net"  # CloudFront distribution
+  ]
 }

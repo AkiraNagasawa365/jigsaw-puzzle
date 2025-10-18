@@ -24,6 +24,8 @@ ENVIRONMENT = os.environ.get('ENVIRONMENT', 'dev')
 # 開発環境: localhost のみ許可
 # 本番環境: 実際のフロントエンドドメインを設定
 ALLOWED_ORIGINS = os.environ.get('ALLOWED_ORIGINS', 'http://localhost:3000')
+# カンマ区切りをリストに変換（一度だけ処理）
+ALLOWED_ORIGINS_LIST = [origin.strip() for origin in ALLOWED_ORIGINS.split(',')]
 
 # サービスの初期化
 puzzle_service = PuzzleService(
@@ -52,12 +54,12 @@ def handler(event, context):
 
         # 必須パラメータを検証
         if not piece_count:
-            return create_response(400, {
+            return create_response(event, 400, {
                 'error': 'pieceCount is required'
             })
 
         if not puzzle_name:
-            return create_response(400, {
+            return create_response(event, 400, {
                 'error': 'puzzleName is required'
             })
 
@@ -69,12 +71,12 @@ def handler(event, context):
         )
 
         # 成功レスポンスを返す
-        return create_response(200, result)
+        return create_response(event, 200, result)
 
     except ValueError as e:
         # バリデーションエラー
         print(f"Validation error: {str(e)}")
-        return create_response(400, {
+        return create_response(event, 400, {
             'error': str(e)
         })
 
@@ -89,20 +91,34 @@ def handler(event, context):
         if ENVIRONMENT != 'prod':
             error_body['details'] = str(e)
 
-        return create_response(500, error_body)
+        return create_response(event, 500, error_body)
 
 
-def create_response(status_code, body):
+def create_response(event, status_code, body):
     """
     Create HTTP response with CORS headers
+
+    CORSヘッダーはリクエストのOriginに基づいて動的に設定される
     """
+    # リクエストのOriginヘッダーを取得（大文字小文字を考慮）
+    headers = event.get('headers', {})
+    request_origin = headers.get('origin') or headers.get('Origin') or ''
+
+    # リクエストOriginが許可リストに含まれているか確認
+    if request_origin in ALLOWED_ORIGINS_LIST:
+        cors_origin = request_origin
+    else:
+        # デフォルトは最初のオリジン（開発環境用）
+        cors_origin = ALLOWED_ORIGINS_LIST[0] if ALLOWED_ORIGINS_LIST else 'http://localhost:3000'
+
     return {
         'statusCode': status_code,
         'headers': {
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': ALLOWED_ORIGINS,  # 環境変数で制御
+            'Access-Control-Allow-Origin': cors_origin,  # リクエストOriginに基づいて動的に設定
             'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-            'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
+            'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
+            'Access-Control-Allow-Credentials': 'true'  # credentialsをサポート
         },
         'body': json.dumps(body)
     }
