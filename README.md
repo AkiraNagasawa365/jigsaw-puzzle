@@ -4,6 +4,7 @@ Web上でジグソーパズルを登録し、ピース画像をアップロー�
 
 ## 技術スタック
 
+### バックエンド
 - **インフラ**: AWS (Lambda, API Gateway, S3, DynamoDB)
 - **IaC**: Terraform
 - **言語**: Python 3.12
@@ -11,10 +12,26 @@ Web上でジグソーパズルを登録し、ピース画像をアップロー�
 - **ローカル開発**: FastAPI
 - **本番環境**: AWS Lambda
 
+### フロントエンド
+- **フレームワーク**: React 18
+- **ビルドツール**: Vite
+- **言語**: TypeScript
+- **ルーティング**: React Router
+- **パッケージ管理**: npm
+
 ## プロジェクト構成
 
 ```
 jigsaw-puzzle/
+├── frontend/          # React フロントエンド
+│   ├── src/
+│   │   ├── components/  # 再利用可能なコンポーネント
+│   │   ├── pages/       # ページコンポーネント
+│   │   ├── types/       # TypeScript型定義
+│   │   ├── App.tsx      # メインアプリ
+│   │   └── main.tsx     # エントリーポイント
+│   ├── package.json
+│   └── vite.config.ts
 ├── backend/           # FastAPI（ローカル開発用）
 │   ├── app.py        # FastAPIアプリケーション
 │   └── puzzle_logic.py # ビジネスロジック（Lambda共通）
@@ -61,6 +78,8 @@ source .venv/bin/activate  # macOS/Linux
 
 ### 3. ローカル開発サーバーの起動
 
+#### バックエンド (FastAPI)
+
 ```bash
 # 環境変数を設定（AWSリソースが必要）
 export S3_BUCKET_NAME=jigsaw-puzzle-dev-images
@@ -68,10 +87,27 @@ export PUZZLES_TABLE_NAME=jigsaw-puzzle-dev-puzzles
 export PIECES_TABLE_NAME=jigsaw-puzzle-dev-pieces
 
 # FastAPIを起動
+cd backend
 uv run uvicorn backend.app:app --reload
 
-# ブラウザで開く
+# Swagger UI
 # http://localhost:8000/docs
+```
+
+#### フロントエンド (React + Vite)
+
+```bash
+# 別のターミナルで実行
+cd frontend
+
+# 依存関係をインストール
+npm install
+
+# 開発サーバーを起動
+npm run dev
+
+# ブラウザで開く
+# http://localhost:5173/
 ```
 
 ### 4. AWSへのデプロイ
@@ -88,33 +124,79 @@ cd ../../..
 ./scripts/deploy-lambda.sh
 ```
 
+## 使い方
+
+### 1. パズルを新規作成
+
+1. ブラウザで `http://localhost:5173/` を開く
+2. 「+ 新規作成」ボタンをクリック
+3. パズル名を入力（例：「富士山の風景」）
+4. ピース数を選択（100, 300, 500, 1000, 2000）
+5. 「パズルを作成」ボタンをクリック
+
+### 2. パズル画像をアップロード
+
+1. パズル作成後、自動的に詳細画面に遷移
+2. 画像ファイルを選択
+3. 「画像をアップロード」ボタンをクリック
+4. S3に画像が保存されます
+
+### 3. パズル一覧を確認
+
+1. ホーム画面に登録済みパズルが一覧表示される
+2. パズルカードをクリックすると詳細画面に遷移
+3. 各パズルのステータス（待機中、アップロード済み、処理中、完了）を確認できる
+
 ## ドキュメント
 
 - [システム設計書](docs/system-design.md) - アーキテクチャの全体像
 - [実装ロードマップ](docs/implementation-roadmap.md) - Phase別の実装計画
 - [デプロイガイド](docs/deployment-guide.md) - AWSへのデプロイ手順
-- [開発環境セットアップ](backend/SETUP.md) - 詳細なセットアップ手順
+- [React フロントエンド開発ガイド](docs/20251018_react-frontend-guide.md) - フロントエンド実装の詳細
 
 ## 開発ワークフロー
 
-### ローカル開発
+### ローカル開発（フルスタック）
 
 ```bash
-# 1. ローカルでFastAPIを起動
+# 1. バックエンドを起動（ターミナル1）
+cd backend
 uv run uvicorn backend.app:app --reload
 
-# 2. Swagger UIでテスト
-# http://localhost:8000/docs
+# 2. フロントエンドを起動（ターミナル2）
+cd frontend
+npm run dev
 
-# 3. ビジネスロジックを修正
-vim backend/puzzle_logic.py
-# FastAPIが自動リロード
+# 3. ブラウザで確認
+# フロントエンド: http://localhost:5173/
+# API Swagger: http://localhost:8000/docs
 
-# 4. 満足したらLambdaにデプロイ
+# 4. コードを修正
+# - バックエンド: backend/puzzle_logic.py または backend/app.py
+# - フロントエンド: frontend/src/ 配下のファイル
+# 両方とも自動リロードされます
+
+# 5. 満足したらLambdaにデプロイ
 ./scripts/deploy-lambda.sh
 ```
 
+### フロントエンド開発
+
+```bash
+# TypeScriptの型チェック
+cd frontend
+npm run type-check
+
+# ビルド
+npm run build
+
+# プレビュー（本番環境に近い状態）
+npm run preview
+```
+
 ### パッケージの追加
+
+#### Python（バックエンド）
 
 ```bash
 # 本番用の依存関係を追加
@@ -125,6 +207,18 @@ uv add --dev <package-name>
 
 # 依存関係を同期
 uv sync
+```
+
+#### JavaScript（フロントエンド）
+
+```bash
+cd frontend
+
+# 本番用の依存関係を追加
+npm install <package-name>
+
+# 開発用の依存関係を追加
+npm install --save-dev <package-name>
 ```
 
 ### コードフォーマット
@@ -144,9 +238,20 @@ uv run ruff check backend/ lambda/
 - Swagger UI: `http://localhost:8000/docs`
 - ReDoc: `http://localhost:8000/redoc`
 
+### エンドポイント一覧
+
+#### パズル管理
+- `POST /puzzles` - 新規パズル作成（画像なし）
+- `POST /puzzles/{puzzleId}/upload` - パズル画像のアップロードURL取得
+- `GET /puzzles/{puzzleId}` - パズル情報の取得
+- `GET /users/{userId}/puzzles` - ユーザーのパズル一覧取得
+
+#### ヘルスチェック
+- `GET /` - API ヘルスチェック
+- `GET /debug/config` - 設定情報（開発環境のみ）
+
 ### AWS (本番)
 - Base URL: `https://<api-id>.execute-api.ap-northeast-1.amazonaws.com/dev`
-- パズル登録: `POST /puzzles`
 
 ## 環境変数
 
@@ -193,7 +298,43 @@ terraform init -upgrade
 terraform plan
 ```
 
+## アーキテクチャ
+
+### ワークフロー
+
+1. **パズル作成**
+   - ユーザーがパズル名とピース数を入力
+   - バックエンドがパズルレコードをDynamoDBに作成
+   - ステータス: `pending`
+
+2. **画像アップロード**
+   - ユーザーが画像ファイルを選択
+   - バックエンドがS3用のPre-signed URLを生成
+   - フロントエンドが直接S3に画像をアップロード
+   - ステータス: `pending` → `uploaded`
+
+3. **画像処理（今後実装予定）**
+   - Lambda関数が画像を分割処理
+   - 各ピース画像をS3に保存
+   - ピース情報をDynamoDBに保存
+   - ステータス: `uploaded` → `processing` → `completed`
+
+### データモデル
+
+#### Puzzles テーブル
+- `userId` (PK): ユーザーID
+- `puzzleId` (SK): パズルID
+- `puzzleName`: パズル名
+- `pieceCount`: ピース数
+- `fileName`: ファイル名（オプショナル）
+- `s3Key`: S3キー（オプショナル）
+- `status`: ステータス（pending, uploaded, processing, completed）
+- `createdAt`: 作成日時
+- `updatedAt`: 更新日時
+
 ## テスト
+
+### バックエンド
 
 ```bash
 # テストを実行
@@ -201,6 +342,18 @@ uv run pytest
 
 # カバレッジ付き
 uv run pytest --cov=backend --cov-report=html
+```
+
+### フロントエンド
+
+```bash
+cd frontend
+
+# TypeScript型チェック
+npm run type-check
+
+# Lintチェック（設定されている場合）
+npm run lint
 ```
 
 ## ライセンス
