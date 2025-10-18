@@ -144,8 +144,16 @@ class PuzzleService:
             raise ValueError(f"Puzzle not found: {puzzle_id}")
 
         # S3キーを生成
-        file_extension = file_name.split('.')[-1] if '.' in file_name else 'jpg'
+        file_extension = file_name.split('.')[-1].lower() if '.' in file_name else 'jpg'
         s3_key = f"puzzles/{puzzle_id}.{file_extension}"
+
+        # 拡張子から正しいMIME typeを取得
+        mime_type_map = {
+            'jpg': 'image/jpeg',
+            'jpeg': 'image/jpeg',
+            'png': 'image/png'
+        }
+        content_type = mime_type_map.get(file_extension, 'image/jpeg')
 
         # アップロード用のpre-signed URLを生成
         try:
@@ -154,9 +162,9 @@ class PuzzleService:
                 Params={
                     'Bucket': self.s3_bucket_name,
                     'Key': s3_key,
-                    'ContentType': f'image/{file_extension}'
+                    'ContentType': content_type
                 },
-                ExpiresIn=3600  # 1時間
+                ExpiresIn=900  # 15分（セキュリティ向上のため短縮）
             )
         except ClientError as e:
             raise ClientError(
@@ -212,8 +220,8 @@ class PuzzleService:
         return {
             'puzzleId': puzzle_id,
             'uploadUrl': presigned_url,
-            'expiresIn': 3600,
-            'message': 'Pre-signed URL generated successfully. Upload your image to this URL.'
+            'expiresIn': 900,
+            'message': 'Pre-signed URL generated successfully. Upload your image to this URL within 15 minutes.'
         }
 
     def get_puzzle(self, user_id: str, puzzle_id: str) -> Optional[Dict[str, Any]]:

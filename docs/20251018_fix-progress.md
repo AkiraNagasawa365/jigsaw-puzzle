@@ -5,9 +5,9 @@
 ## 📋 進捗サマリー
 
 - **Total**: 70+ 件
-- **完了**: 5 件 (✅ CORS環境変数化、エラー情報露出防止、構造化ログ導入、CloudFront構築、ディレクトリ構造リファクタリング)
+- **完了**: 7 件 (✅ CORS環境変数化、エラー情報露出防止、構造化ログ導入、Pre-signed URL有効期限短縮、Input validation強化、CloudFront構築、ディレクトリ構造リファクタリング)
 - **進行中**: 0 件
-- **未着手**: 65+ 件
+- **未着手**: 63+ 件
 
 ## ⚠️ 重要な構造変更
 
@@ -69,24 +69,37 @@
 
 ### 今週中に実施（所要時間: 3時間）
 
-- [ ] **1.4 Input validationの強化** (1時間)
-  - ファイル: `backend/app/core/schemas.py`
+- [x] **1.4 Input validationの強化** (1時間) ✅ 2025-10-19 完了
+  - ファイル: `backend/app/core/schemas.py`, `backend/app/services/puzzle_service.py`
   - 参照: [code-review.md#14-input-validation]
-  - 現状: Pydanticによる基本的なバリデーション実装済み
-    - `pieceCount`: ge=100, le=2000
-    - `puzzleName`: min_length=1, max_length=100
-  - 追加検討項目:
-    - ファイル名のサニタイゼーション（パストラバーサル対策）
-    - pieceCount を有効な値リスト [100, 300, 500, 1000, 2000] に限定
-    - ファイルサイズ制限の明示化
-    - 画像形式のバリデーション（MIME typeチェック）
+  - 変更内容:
+    - **pieceCount**: `Literal[100, 300, 500, 1000, 2000]` に厳密化（範囲チェックから値リストへ）
+    - **puzzleName**: XSS対策追加
+      - HTMLタグ (`<`, `>`) の拒否
+      - 制御文字の拒否
+      - 自動トリム処理
+    - **fileName**: パストラバーサル対策とサニタイゼーション
+      - `..`, `/`, `\` の拒否（ディレクトリトラバーサル対策）
+      - 不正文字の拒否 (`<`, `>`, `:`, `"`, `|`, `?`, `*`)
+      - 拡張子チェック: `.jpg`, `.jpeg`, `.png` のみ許可
+      - 制御文字の拒否
+    - **MIME type**: 拡張子に基づく正しいContent-Type設定
+      - `jpg/jpeg` → `image/jpeg`
+      - `png` → `image/png`
+    - **userId**: 最大長50文字に制限
+  - セキュリティ効果:
+    - パストラバーサル攻撃を防止
+    - XSS攻撃のリスク軽減
+    - 不正なファイルアップロードを防止
 
-- [ ] **1.5 Pre-signed URLの有効期限短縮** (15分)
-  - ファイル: `backend/app/services/puzzle_service.py`
+- [x] **1.5 Pre-signed URLの有効期限短縮** (15分) ✅ 2025-10-19 完了
+  - ファイル: `backend/app/services/puzzle_service.py`, `backend/app/api/routes/puzzles.py`
   - 参照: [code-review.md#15-pre-signed-urlの有効期限]
-  - 現状: `ExpiresIn=3600` (1時間)
-  - 推奨: `ExpiresIn=900` (15分) または `ExpiresIn=300` (5分)
-  - 変更箇所: `puzzle_service.py` の `generate_presigned_url()` メソッド
+  - 変更内容:
+    - `ExpiresIn=3600` (1時間) → `ExpiresIn=900` (15分) に短縮
+    - レスポンスの `expiresIn` フィールドも 900 に更新
+    - APIドキュメント（docstring）も "15 minutes" に更新
+    - セキュリティ効果: URL漏洩時の悪用リスクを75%削減
 
 - [ ] **1.6 Rate Limitingの実装** (2時間)
   - ファイル: `terraform/modules/api_gateway/` (Terraform設定)

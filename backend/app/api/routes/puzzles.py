@@ -86,7 +86,7 @@ def upload_puzzle_image(puzzle_id: str, request: UploadUrlRequest):
     - **fileName**: Name of the image file (optional, default: puzzle.jpg)
     - **userId**: User ID (optional, default: anonymous)
 
-    Returns a pre-signed URL that is valid for 1 hour.
+    Returns a pre-signed URL that is valid for 15 minutes.
     """
     try:
         result = puzzle_service.generate_upload_url(
