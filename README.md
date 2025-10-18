@@ -33,8 +33,16 @@ jigsaw-puzzle/
 │   ├── package.json
 │   └── vite.config.ts
 ├── backend/           # FastAPI（ローカル開発用）
-│   ├── app.py        # FastAPIアプリケーション
-│   └── puzzle_logic.py # ビジネスロジック（Lambda共通）
+│   └── app/
+│       ├── api/
+│       │   ├── main.py          # FastAPIアプリケーション
+│       │   └── routes/          # APIルート定義
+│       │       └── puzzles.py
+│       ├── core/
+│       │   ├── config.py        # 設定管理
+│       │   └── schemas.py       # Pydanticスキーマ
+│       └── services/
+│           └── puzzle_service.py # ビジネスロジック（Lambda共通）
 ├── lambda/           # Lambda関数
 │   └── puzzle-register/ # パズル登録Lambda
 ├── terraform/        # インフラ定義
@@ -89,8 +97,11 @@ export PUZZLES_TABLE_NAME=jigsaw-puzzle-dev-puzzles
 export PIECES_TABLE_NAME=jigsaw-puzzle-dev-pieces
 export ENVIRONMENT=dev
 
+# backendディレクトリに移動
+cd backend
+
 # FastAPIを起動
-uv run uvicorn backend.app:app --reload
+uv run uvicorn app.api.main:app --reload
 
 # Swagger UI
 # http://localhost:8000/docs
@@ -246,10 +257,10 @@ npm install --save-dev <package-name>
 
 ```bash
 # コードをフォーマット
-uv run black backend/ lambda/
+uv run black backend/app/ lambda/
 
 # Lintチェック
-uv run ruff check backend/ lambda/
+uv run ruff check backend/app/ lambda/
 ```
 
 ## フロントエンドとバックエンドの接続

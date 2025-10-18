@@ -18,9 +18,9 @@ echo ""
 
 cd "$PROJECT_ROOT"
 
-# Check if backend directory exists
-if [ ! -d "backend" ]; then
-    echo "Error: backend/ directory not found"
+# Check if backend/app directory exists
+if [ ! -d "backend/app" ]; then
+    echo "Error: backend/app/ directory not found"
     exit 1
 fi
 
@@ -30,8 +30,9 @@ cd "$LAMBDA_DIR"
 echo "Step 1: Cleaning up old files..."
 rm -rf backend function.zip
 
-echo "Step 2: Copying backend directory..."
-cp -r ../../backend ./backend
+echo "Step 2: Copying backend/app directory..."
+mkdir -p backend
+cp -r ../../backend/app ./backend/
 
 echo "Step 3: Exporting dependencies from uv..."
 # uvからrequirements.txtを生成（Lambda用）

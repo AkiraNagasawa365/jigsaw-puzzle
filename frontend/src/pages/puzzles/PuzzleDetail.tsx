@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import type { Puzzle, UploadUrlResponse } from '../types/puzzle'
-import { API_BASE_URL } from '../config/api'
+import type { Puzzle, UploadUrlResponse } from '../../types/puzzle'
+import { API_BASE_URL } from '../../config/api'
 
 const PuzzleDetail = () => {
   const { puzzleId } = useParams<{ puzzleId: string }>()

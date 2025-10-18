@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import type { PuzzleCreateRequest, PuzzleCreateResponse } from '../types/puzzle'
-import { API_BASE_URL } from '../config/api'
+import type { PuzzleCreateRequest, PuzzleCreateResponse } from '../../types/puzzle'
+import { API_BASE_URL } from '../../config/api'
 
 const PuzzleCreate = () => {
   const navigate = useNavigate()

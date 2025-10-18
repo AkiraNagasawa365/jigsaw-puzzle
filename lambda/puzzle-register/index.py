@@ -2,17 +2,17 @@
 Lambda wrapper for puzzle registration
 
 This is a thin wrapper that uses the same business logic as FastAPI.
-The actual implementation is in puzzle_logic.py
+The actual implementation is in app.services.puzzle_service
 """
 
 import json
 import os
 import sys
 
-# puzzle_logicをインポートするためbackendディレクトリをパスに追加
+# appパッケージをインポートするためbackend/を追加
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'backend'))
 
-from puzzle_logic import PuzzleService
+from app.services.puzzle_service import PuzzleService
 
 # 環境変数
 S3_BUCKET_NAME = os.environ['S3_BUCKET_NAME']

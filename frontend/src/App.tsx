@@ -1,7 +1,7 @@
 import { Routes, Route } from 'react-router-dom'
 import Home from './pages/Home'
-import PuzzleCreate from './pages/PuzzleCreate'
-import PuzzleDetail from './components/PuzzleDetail'
+import PuzzleCreate from './pages/puzzles/PuzzleCreate'
+import PuzzleDetail from './pages/puzzles/PuzzleDetail'
 
 function App() {
   return (
