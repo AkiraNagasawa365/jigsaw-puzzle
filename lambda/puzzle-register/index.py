@@ -84,10 +84,12 @@ def handler(event, context):
         import traceback
         traceback.print_exc()
 
-        return create_response(500, {
-            'error': 'Internal server error',
-            'details': str(e)
-        })
+        # 本番環境ではエラー詳細を隠す
+        error_body = {'error': 'Internal server error'}
+        if ENVIRONMENT != 'prod':
+            error_body['details'] = str(e)
+
+        return create_response(500, error_body)
 
 
 def create_response(status_code, body):

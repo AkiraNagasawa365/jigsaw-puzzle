@@ -90,7 +90,11 @@ def create_puzzle(request: PuzzleCreateRequest):
 
     except Exception as e:
         print(f"Error: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+        # 本番環境ではエラー詳細を隠す
+        if ENVIRONMENT == 'prod':
+            raise HTTPException(status_code=500, detail="Internal server error")
+        else:
+            raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
 @app.post("/puzzles/{puzzle_id}/upload", response_model=UploadUrlResponse, responses={
@@ -121,7 +125,11 @@ def upload_puzzle_image(puzzle_id: str, request: UploadUrlRequest):
 
     except Exception as e:
         print(f"Error: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+        # 本番環境ではエラー詳細を隠す
+        if ENVIRONMENT == 'prod':
+            raise HTTPException(status_code=500, detail="Internal server error")
+        else:
+            raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
 @app.get("/puzzles/{puzzle_id}")
