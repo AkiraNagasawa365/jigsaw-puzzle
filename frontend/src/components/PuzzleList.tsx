@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import type { Puzzle } from '../types/puzzle'
 
 interface PuzzleListProps {
@@ -11,11 +11,7 @@ const PuzzleList = ({ userId = 'anonymous', onPuzzleClick }: PuzzleListProps) =>
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string>('')
 
-  useEffect(() => {
-    fetchPuzzles()
-  }, [userId])
-
-  const fetchPuzzles = async () => {
+  const fetchPuzzles = useCallback(async () => {
     setLoading(true)
     setError('')
 
@@ -33,7 +29,11 @@ const PuzzleList = ({ userId = 'anonymous', onPuzzleClick }: PuzzleListProps) =>
     } finally {
       setLoading(false)
     }
-  }
+  }, [userId])
+
+  useEffect(() => {
+    fetchPuzzles()
+  }, [fetchPuzzles])
 
   const handlePuzzleClick = (puzzle: Puzzle) => {
     if (onPuzzleClick) {
