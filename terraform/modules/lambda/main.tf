@@ -15,6 +15,7 @@ resource "aws_lambda_function" "puzzle_register" {
       PUZZLES_TABLE_NAME  = var.puzzles_table_name
       PIECES_TABLE_NAME   = var.pieces_table_name
       ENVIRONMENT         = var.environment
+      ALLOWED_ORIGINS     = var.allowed_origins
     }
   }
 

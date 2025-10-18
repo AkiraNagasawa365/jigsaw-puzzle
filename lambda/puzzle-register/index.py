@@ -20,6 +20,11 @@ PUZZLES_TABLE_NAME = os.environ['PUZZLES_TABLE_NAME']
 PIECES_TABLE_NAME = os.environ['PIECES_TABLE_NAME']
 ENVIRONMENT = os.environ.get('ENVIRONMENT', 'dev')
 
+# CORS設定用の許可オリジンを環境変数から取得
+# 開発環境: localhost のみ許可
+# 本番環境: 実際のフロントエンドドメインを設定
+ALLOWED_ORIGINS = os.environ.get('ALLOWED_ORIGINS', 'http://localhost:3000')
+
 # サービスの初期化
 puzzle_service = PuzzleService(
     s3_bucket_name=S3_BUCKET_NAME,
@@ -93,8 +98,8 @@ def create_response(status_code, body):
         'statusCode': status_code,
         'headers': {
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',  # TODO: 本番環境では制限すること
-            'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
+            'Access-Control-Allow-Origin': ALLOWED_ORIGINS,  # 環境変数で制御
+            'Access-Control-Allow-Headers': 'Content-Type,Authorization',
             'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
         },
         'body': json.dumps(body)

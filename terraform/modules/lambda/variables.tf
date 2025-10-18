@@ -63,3 +63,9 @@ variable "log_retention_days" {
   type        = number
   default     = 7
 }
+
+variable "allowed_origins" {
+  description = "Allowed origins for CORS (comma-separated for multiple origins)"
+  type        = string
+  default     = "http://localhost:3000"
+}

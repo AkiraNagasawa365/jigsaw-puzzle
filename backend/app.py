@@ -24,20 +24,25 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# CORS設定（開発用）
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # 本番環境では制限すること
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 # Environment variables (開発用のデフォルト値)
 S3_BUCKET_NAME = os.environ.get('S3_BUCKET_NAME', 'jigsaw-puzzle-dev-images')
 PUZZLES_TABLE_NAME = os.environ.get('PUZZLES_TABLE_NAME', 'jigsaw-puzzle-dev-puzzles')
 PIECES_TABLE_NAME = os.environ.get('PIECES_TABLE_NAME', 'jigsaw-puzzle-dev-pieces')
 ENVIRONMENT = os.environ.get('ENVIRONMENT', 'dev')
+
+# CORS設定用の許可オリジンを環境変数から取得
+# 開発環境: localhost のみ許可
+# 本番環境: 実際のフロントエンドドメインを設定
+ALLOWED_ORIGINS = os.environ.get('ALLOWED_ORIGINS', 'http://localhost:3000').split(',')
+
+# CORS設定
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=ALLOWED_ORIGINS,  # 環境変数で制御
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization"],
+)
 
 # サービスの初期化
 puzzle_service = PuzzleService(

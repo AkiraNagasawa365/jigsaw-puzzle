@@ -17,7 +17,7 @@ variable "environment" {
 }
 
 variable "allowed_origins" {
-  description = "Allowed origins for CORS"
+  description = "Allowed origins for CORS (S3 and Lambda)"
   type        = list(string)
-  default     = ["*"]
+  default     = ["http://localhost:3000"]
 }

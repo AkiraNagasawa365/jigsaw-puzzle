@@ -21,19 +21,18 @@ pip install -r requirements.txt
 
 ### 2. 環境変数の設定
 
-```bash
-cp .env.example .env
-# .env ファイルを編集して、実際のAWSリソース名を設定
-```
-
-または、環境変数を直接エクスポート：
+環境変数を直接エクスポート：
 
 ```bash
+export AWS_REGION=ap-northeast-1
+export AWS_PROFILE=default
 export S3_BUCKET_NAME=jigsaw-puzzle-dev-images
 export PUZZLES_TABLE_NAME=jigsaw-puzzle-dev-puzzles
 export PIECES_TABLE_NAME=jigsaw-puzzle-dev-pieces
 export ENVIRONMENT=dev
 ```
+
+**参考**: デフォルト値は `.env.example` に記載されています。
 
 ### 3. AWS認証情報の設定
 

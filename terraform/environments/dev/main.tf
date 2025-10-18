@@ -72,6 +72,7 @@ module "lambda" {
   s3_bucket_name            = module.s3.bucket_name
   puzzles_table_name        = module.dynamodb.puzzles_table_name
   pieces_table_name         = module.dynamodb.pieces_table_name
+  allowed_origins           = join(",", var.allowed_origins)  # list を カンマ区切り文字列に変換
 
   # Lambda関数のzipファイルパス
   # 最初は空のzipでも可（後でdeploy-lambda.shで更新）
@@ -98,4 +99,16 @@ module "api_gateway" {
   # スロットリング設定（必要に応じて調整）
   throttling_burst_limit = 5000
   throttling_rate_limit  = 10000
+}
+
+# ============================================
+# Frontend Module
+# ============================================
+# S3 + CloudFront でフロントエンドをホスティング
+module "frontend" {
+  source = "../../modules/frontend"
+
+  project_name = var.project_name
+  environment  = var.environment
+  common_tags  = local.common_tags
 }

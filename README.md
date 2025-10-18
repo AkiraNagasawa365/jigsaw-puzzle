@@ -82,12 +82,14 @@ source .venv/bin/activate  # macOS/Linux
 
 ```bash
 # 環境変数を設定（AWSリソースが必要）
+export AWS_REGION=ap-northeast-1
+export AWS_PROFILE=default
 export S3_BUCKET_NAME=jigsaw-puzzle-dev-images
 export PUZZLES_TABLE_NAME=jigsaw-puzzle-dev-puzzles
 export PIECES_TABLE_NAME=jigsaw-puzzle-dev-pieces
+export ENVIRONMENT=dev
 
 # FastAPIを起動
-cd backend
 uv run uvicorn backend.app:app --reload
 
 # Swagger UI
@@ -320,7 +322,9 @@ const response = await fetch(`${API_BASE_URL}/puzzles`)
 
 ## 環境変数
 
-### ローカル開発用
+### バックエンド（ローカル開発用）
+
+ローカル開発では環境変数を直接エクスポートします：
 
 ```bash
 export AWS_REGION=ap-northeast-1
@@ -329,11 +333,18 @@ export S3_BUCKET_NAME=jigsaw-puzzle-dev-images
 export PUZZLES_TABLE_NAME=jigsaw-puzzle-dev-puzzles
 export PIECES_TABLE_NAME=jigsaw-puzzle-dev-pieces
 export ENVIRONMENT=dev
+export ALLOWED_ORIGINS=http://localhost:3000
 ```
 
-### Lambda用
+**参考**: デフォルト値は `backend/.env.example` に記載されています。
 
-Terraformで自動的に設定されます。
+**ALLOWED_ORIGINS**: CORS許可オリジン（カンマ区切りで複数指定可）
+- 開発環境: `http://localhost:3000`
+- 本番環境: `https://your-cloudfront-domain.cloudfront.net`
+
+### Lambda用（本番環境）
+
+Terraformで自動的に設定されます（`terraform/modules/lambda/main.tf`）。
 
 ## トラブルシューティング
 
@@ -421,14 +432,3 @@ npm run type-check
 npm run lint
 ```
 
-## ライセンス
-
-MIT
-
-## 貢献
-
-プルリクエスト歓迎！
-
-## 作者
-
-あなたの名前
