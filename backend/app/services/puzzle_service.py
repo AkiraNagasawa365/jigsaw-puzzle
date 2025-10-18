@@ -93,10 +93,7 @@ class PuzzleService:
                     "error": str(e)
                 }
             )
-            raise ClientError(
-                f"Failed to save puzzle to DynamoDB: {str(e)}",
-                operation_name='put_item'
-            )
+            raise  # 元のエラーをそのまま再raise
 
         logger.info(
             f"Created puzzle successfully",
@@ -167,10 +164,16 @@ class PuzzleService:
                 ExpiresIn=900  # 15分（セキュリティ向上のため短縮）
             )
         except ClientError as e:
-            raise ClientError(
-                f"Failed to generate pre-signed URL: {str(e)}",
-                operation_name='generate_presigned_url'
+            logger.error(
+                "Failed to generate pre-signed URL",
+                extra={
+                    "puzzle_id": puzzle_id,
+                    "user_id": user_id,
+                    "s3_key": s3_key,
+                    "error": str(e)
+                }
             )
+            raise  # 元のエラーをそのまま再raise
 
         # ファイル情報でパズルレコードを更新
         current_time = datetime.utcnow().isoformat()
@@ -201,10 +204,7 @@ class PuzzleService:
                     "error": str(e)
                 }
             )
-            raise ClientError(
-                f"Failed to update puzzle in DynamoDB: {str(e)}",
-                operation_name='update_item'
-            )
+            raise  # 元のエラーをそのまま再raise
 
         logger.info(
             "Generated upload URL successfully",

@@ -5,9 +5,9 @@
 ## 📋 進捗サマリー
 
 - **Total**: 70+ 件
-- **完了**: 7 件 (✅ CORS環境変数化、エラー情報露出防止、構造化ログ導入、Pre-signed URL有効期限短縮、Input validation強化、CloudFront構築、ディレクトリ構造リファクタリング)
+- **完了**: 10 件 (✅ CORS環境変数化、エラー情報露出防止、構造化ログ導入、Pre-signed URL有効期限短縮、Input validation強化、CloudFront構築、ディレクトリ構造リファクタリング、pytestセットアップ、schemasテスト、puzzle_serviceテスト)
 - **進行中**: 0 件
-- **未着手**: 63+ 件
+- **未着手**: 60+ 件
 
 ## ⚠️ 重要な構造変更
 
