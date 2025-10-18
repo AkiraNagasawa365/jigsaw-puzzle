@@ -43,6 +43,19 @@ echo "  S3 Bucket: $S3_BUCKET"
 echo "  CloudFront ID: $CLOUDFRONT_ID"
 echo ""
 
+# Get API endpoint from Terraform
+echo "Step 1.5: Getting API endpoint from Terraform..."
+cd "$TERRAFORM_DIR"
+API_ENDPOINT=$(terraform output -raw api_endpoint 2>/dev/null)
+
+if [ -z "$API_ENDPOINT" ]; then
+    echo "Warning: Could not get API endpoint from Terraform"
+    echo "         Using default from .env.production"
+else
+    echo "  API Endpoint: $API_ENDPOINT"
+fi
+echo ""
+
 # Build frontend
 echo "Step 2: Building frontend for production..."
 cd "$PROJECT_ROOT/frontend"
@@ -53,8 +66,15 @@ if [ ! -d "node_modules" ]; then
     npm install
 fi
 
-# Build
-npm run build
+# Build with API endpoint from Terraform (if available)
+# Viteは環境変数をビルド時に埋め込むため、ここで指定する必要がある
+if [ -n "$API_ENDPOINT" ]; then
+    echo "  Building with API endpoint: $API_ENDPOINT"
+    VITE_API_BASE_URL=$API_ENDPOINT npm run build
+else
+    echo "  Building with .env.production settings"
+    npm run build
+fi
 
 if [ ! -d "dist" ]; then
     echo "Error: Build failed - dist/ directory not found"

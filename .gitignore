@@ -78,6 +78,7 @@ frontend/build/
 frontend/.vite/
 frontend/.turbo/
 frontend/coverage/
+frontend/.env
 frontend/.env.local
 frontend/.env.*.local
 
