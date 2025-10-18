@@ -3,6 +3,12 @@
 # ============================================
 # This module creates an API Gateway that provides HTTP endpoints
 # to invoke Lambda functions
+#
+# 重要な制限事項:
+# - API Gateway REST APIの最大ペイロードサイズ: 10MB
+# - Lambda同期呼び出しの最大ペイロードサイズ: 6MB
+# - 大きなファイル（画像など）は、Pre-signed URLを使ってS3に直接アップロードすること
+# - 参考: https://docs.aws.amazon.com/apigateway/latest/developerguide/limits.html
 
 # --------------------------------------------
 # 1. REST API (APIのベース)

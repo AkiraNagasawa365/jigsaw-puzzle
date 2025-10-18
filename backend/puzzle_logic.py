@@ -77,7 +77,7 @@ class PuzzleService:
                     'Key': s3_key,
                     'ContentType': f'image/{file_extension}'
                 },
-                ExpiresIn=300  # 5 minutes
+                ExpiresIn=3600  # 1 hour
             )
         except ClientError as e:
             raise ClientError(
@@ -113,7 +113,7 @@ class PuzzleService:
         return {
             'puzzleId': puzzle_id,
             'uploadUrl': presigned_url,
-            'expiresIn': 300,
+            'expiresIn': 3600,
             'message': 'Pre-signed URL generated successfully. Upload your image to this URL.'
         }
 
