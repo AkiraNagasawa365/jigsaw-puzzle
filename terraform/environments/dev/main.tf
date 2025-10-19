@@ -72,7 +72,7 @@ module "lambda" {
   s3_bucket_name            = module.s3.bucket_name
   puzzles_table_name        = module.dynamodb.puzzles_table_name
   pieces_table_name         = module.dynamodb.pieces_table_name
-  allowed_origins           = join(",", var.allowed_origins)  # list を カンマ区切り文字列に変換
+  allowed_origins           = var.allowed_origins  # Lambda モジュール内で join() される
 
   # Lambda関数のzipファイルパス
   # 最初は空のzipでも可（後でdeploy-lambda.shで更新）

@@ -65,7 +65,9 @@ variable "log_retention_days" {
 }
 
 variable "allowed_origins" {
-  description = "Allowed origins for CORS (comma-separated for multiple origins)"
-  type        = string
-  default     = "http://localhost:3000"
+  description = "Allowed origins for CORS (list of origins). Must be specified per environment."
+  type        = list(string)
+  # デフォルト値なし - 環境ごとに明示的に指定を強制
+  # dev: ["http://localhost:3000", "http://localhost:5173"]
+  # prod: ["https://example.cloudfront.net"]
 }

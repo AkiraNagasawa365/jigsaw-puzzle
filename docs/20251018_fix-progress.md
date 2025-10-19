@@ -135,16 +135,64 @@
 
 ### バックエンドテスト
 
-- [ ] **3.1 pytestセットアップ** (2時間)
-  - `backend/tests/` ディレクトリ構成
-  - pytest.ini, conftest.py
+- [x] **3.1 pytestセットアップ** (2時間) ✅ 2025-10-19 完了
+  - ファイル: `backend/pytest.ini`, `backend/tests/conftest.py`
+  - 変更内容:
+    - **ディレクトリ構成**: `tests/unit/`, `tests/integration/` 作成
+    - **pytest.ini**: 詳細な設定とカバレッジ測定（80%基準）
+    - **conftest.py**: 共通フィクスチャとAWSモック設定
+      - `setup_test_environment`: 環境変数の自動設定
+      - `valid_puzzle_data`, `valid_upload_data`: テストデータフィクスチャ
+      - `xss_attack_payloads`: XSS攻撃パターン（実際の攻撃ペイロード）
+      - `path_traversal_payloads`: ディレクトリトラバーサル攻撃パターン
+      - `mock_s3_client`, `mock_dynamodb_resource`: AWSモック
+    - **依存パッケージ**: pytest, pytest-cov, pytest-mock, pytest-asyncio, moto
+    - **カスタムマーカー**: @pytest.mark.unit, @pytest.mark.security, @pytest.mark.validation
 
-- [ ] **3.2 puzzle_logicの単体テスト** (4時間)
-  - `test_puzzle_logic.py`
-  - motoでAWSモック
+- [x] **3.2 puzzle_serviceの単体テスト** (4時間) ✅ 2025-10-19 完了
+  - ファイル: `backend/tests/unit/test_puzzle_service.py`
+  - 変更内容:
+    - **22個の単体テスト**を作成、全て成功 ✅
+    - **テストカバレッジ**: `puzzle_service.py` 100%達成
+    - テスト対象:
+      - `create_puzzle()`: パズル作成（6テスト）
+        - 正常系: 有効なpieceCount全て、デフォルトuserId、UUID一意性
+        - 異常系: 無効なpieceCount、DynamoDBエラー
+      - `generate_upload_url()`: Pre-signed URL生成（9テスト）
+        - 正常系: URL生成、MIME typeマッピング（jpg/jpeg/png）、有効期限900秒
+        - 異常系: パズル不在、S3エラー、DynamoDB更新エラー
+        - ステータス更新: 'uploaded' への変更確認
+      - `get_puzzle()`: パズル取得（3テスト）
+        - 正常系: 取得成功
+        - 異常系: 未発見、DynamoDBエラー
+      - `list_puzzles()`: 一覧取得（4テスト）
+        - 正常系: 複数件、0件、クエリパラメータ確認
+        - 異常系: DynamoDBエラー
+    - モック戦略: boto3 (S3, DynamoDB) を完全モック、実際のAWS不要
 
-- [ ] **3.3 schemasのバリデーションテスト** (2時間)
-  - `test_schemas.py`
+- [x] **3.3 schemasのバリデーションテスト** (2時間) ✅ 2025-10-19 完了
+  - ファイル: `backend/tests/unit/test_schemas.py`
+  - 変更内容:
+    - **38個のバリデーションテスト**を作成、全て成功 ✅
+    - **テストカバレッジ**: `schemas.py` 100%達成
+    - テスト対象:
+      - **PuzzleCreateRequest** (16テスト):
+        - `pieceCount`: 有効値全て、無効値（境界外、中間値、負数）
+        - `puzzleName`: XSS対策（10種のHTMLタグ注入パターン）、制御文字、トリミング、文字列長
+        - `userId`: デフォルト値、最大長
+      - **UploadUrlRequest** (19テスト):
+        - `fileName`: 拡張子チェック（jpg/jpeg/png、大文字小文字）
+        - セキュリティテスト:
+          - パストラバーサル対策（Unix形式 `../`, Windows形式 `..\`, URL encoded）
+          - 不正文字拒否（`<>:"|?*`）
+          - 制御文字拒否（null byte, tab, etc.）
+        - トリミング、最大長、デフォルト値
+      - **ResponseSchemas** (3テスト): 各レスポンス構造の検証
+    - **セキュリティテストの網羅性**:
+      - 実際の攻撃パターンを使用（conftest.pyのフィクスチャ）
+      - XSS: `<script>`, `<img onerror>`, `<svg onload>` など
+      - パストラバーサル: `../../../etc/passwd.jpg` など
+  - **テスト結果**: 38/38成功、schemas.py 100%カバレッジ
 
 - [ ] **3.4 APIの統合テスト** (4時間)
   - `test_api.py`

@@ -15,7 +15,8 @@ variable "common_tags" {
 }
 
 variable "allowed_origins" {
-  description = "Allowed origins for CORS"
+  description = "Allowed origins for CORS. Must be specified per environment."
   type        = list(string)
-  default     = ["*"]
+  # デフォルト値なし - 環境ごとに明示的に指定を強制
+  # ワイルドカード "*" は本番環境では使用しないこと
 }
