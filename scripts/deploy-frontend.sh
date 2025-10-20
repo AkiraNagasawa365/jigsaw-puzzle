@@ -43,13 +43,22 @@ echo "  S3 Bucket: $S3_BUCKET"
 echo "  CloudFront ID: $CLOUDFRONT_ID"
 echo ""
 
-# Get API endpoint from Terraform
-echo "Step 1.5: Getting API endpoint from Terraform..."
+# Get API base URL from SSM via Terraform output
+echo "Step 1.5: Resolving API base URL from SSM..."
 cd "$TERRAFORM_DIR"
-API_ENDPOINT=$(terraform output -raw api_endpoint 2>/dev/null)
+API_PARAMETER_NAME=$(terraform output -raw frontend_api_base_url_parameter 2>/dev/null)
+
+if [ -z "$API_PARAMETER_NAME" ]; then
+    echo "Warning: Could not get SSM parameter name from Terraform"
+    echo "         Falling back to direct Terraform output (api_endpoint)"
+    API_ENDPOINT=$(terraform output -raw api_endpoint 2>/dev/null)
+else
+    echo "  SSM Parameter: $API_PARAMETER_NAME"
+    API_ENDPOINT=$(aws ssm get-parameter --name "$API_PARAMETER_NAME" --with-decryption --query 'Parameter.Value' --output text 2>/dev/null)
+fi
 
 if [ -z "$API_ENDPOINT" ]; then
-    echo "Warning: Could not get API endpoint from Terraform"
+    echo "Warning: Could not resolve API endpoint"
     echo "         Using default from .env.production"
 else
     echo "  API Endpoint: $API_ENDPOINT"

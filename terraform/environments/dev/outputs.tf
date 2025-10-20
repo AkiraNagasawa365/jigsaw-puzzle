@@ -103,3 +103,13 @@ output "frontend_s3_bucket_name" {
   description = "S3 bucket name for frontend files"
   value       = module.frontend.s3_bucket_name
 }
+
+output "frontend_api_base_url_parameter" {
+  description = "SSM parameter storing the frontend API base URL"
+  value       = aws_ssm_parameter.frontend_api_base_url.name
+}
+
+output "backend_env_parameter" {
+  description = "SSM parameter containing backend environment variables"
+  value       = aws_ssm_parameter.backend_env.name
+}
