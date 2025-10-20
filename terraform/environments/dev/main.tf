@@ -57,6 +57,17 @@ module "iam" {
 }
 
 # ============================================
+# Cognito Module
+# ============================================
+# ユーザー認証のためのCognito User Pool
+module "cognito" {
+  source = "../../modules/cognito"
+
+  project_name = var.project_name
+  environment  = var.environment
+}
+
+# ============================================
 # Lambda Module
 # ============================================
 # Lambda関数を作成します

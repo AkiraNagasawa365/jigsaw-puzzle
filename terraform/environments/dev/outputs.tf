@@ -24,6 +24,35 @@ output "lambda_execution_role_arn" {
 }
 
 # ============================================
+# Cognito Outputs
+# ============================================
+
+output "cognito_user_pool_id" {
+  description = "Cognito User Pool ID (フロントエンドで使用)"
+  value       = module.cognito.user_pool_id
+}
+
+output "cognito_client_id" {
+  description = "Cognito User Pool Client ID (フロントエンドで使用)"
+  value       = module.cognito.client_id
+}
+
+output "cognito_user_pool_arn" {
+  description = "Cognito User Pool ARN (API Gatewayで使用)"
+  value       = module.cognito.user_pool_arn
+}
+
+output "cognito_domain" {
+  description = "Cognito User Pool Domain"
+  value       = module.cognito.domain
+}
+
+output "cognito_auth_url" {
+  description = "Cognito Hosted UI URL (テスト用)"
+  value       = module.cognito.auth_url
+}
+
+# ============================================
 # Lambda Outputs
 # ============================================
 
