@@ -30,85 +30,57 @@ resource "aws_api_gateway_rest_api" "main" {
 }
 
 # --------------------------------------------
-# 2. リソース: /puzzles
+# 2. Proxy統合: /{proxy+}
 # --------------------------------------------
-# URLのパス部分を定義
-# 例: https://api.example.com/dev/puzzles
-resource "aws_api_gateway_resource" "puzzles" {
+# すべてのパスをLambdaに転送するProxy統合
+# 新しいエンドポイント追加時にTerraform変更不要
+resource "aws_api_gateway_resource" "proxy" {
   rest_api_id = aws_api_gateway_rest_api.main.id
   parent_id   = aws_api_gateway_rest_api.main.root_resource_id
-  path_part   = "puzzles"
+  path_part   = "{proxy+}"
 }
 
 # --------------------------------------------
-# 3. メソッド: POST /puzzles
+# 3. メソッド: ANY /{proxy+}
 # --------------------------------------------
-# POSTリクエストを受け付ける設定
-resource "aws_api_gateway_method" "post_puzzles" {
+# すべてのHTTPメソッド（GET, POST, PUT, DELETE, etc.）を受け付ける
+resource "aws_api_gateway_method" "proxy" {
   rest_api_id   = aws_api_gateway_rest_api.main.id
-  resource_id   = aws_api_gateway_resource.puzzles.id
-  http_method   = "POST"
-  authorization = "NONE" # 認証なし（後でCognitoを追加可能）
-
-  # リクエストバリデーション
-  request_parameters = {
-    "method.request.header.Content-Type" = true
-  }
+  resource_id   = aws_api_gateway_resource.proxy.id
+  http_method   = "ANY"
+  authorization = "NONE" # 認証なし（将来Cognitoオーソライザーを追加可能）
 }
 
 # --------------------------------------------
-# 4. Lambda統合
+# 4. Lambda統合: ANY /{proxy+}
 # --------------------------------------------
-# API GatewayからLambda関数を呼び出す設定
-resource "aws_api_gateway_integration" "lambda_post_puzzles" {
+# すべてのリクエストをLambda関数に転送
+resource "aws_api_gateway_integration" "lambda_proxy" {
   rest_api_id = aws_api_gateway_rest_api.main.id
-  resource_id = aws_api_gateway_resource.puzzles.id
-  http_method = aws_api_gateway_method.post_puzzles.http_method
+  resource_id = aws_api_gateway_resource.proxy.id
+  http_method = aws_api_gateway_method.proxy.http_method
 
-  # Lambda関数との統合タイプ
   integration_http_method = "POST"
-  type                    = "AWS_PROXY" # Lambda Proxy統合（推奨）
+  type                    = "AWS_PROXY" # Lambda Proxy統合
   uri                     = var.puzzle_register_lambda_invoke_arn
 }
 
 # --------------------------------------------
-# 5. メソッドレスポンス
+# 5. CORS設定: OPTIONS /{proxy+}
 # --------------------------------------------
-# API Gatewayがクライアントに返すレスポンスの設定
-resource "aws_api_gateway_method_response" "post_puzzles_200" {
-  rest_api_id = aws_api_gateway_rest_api.main.id
-  resource_id = aws_api_gateway_resource.puzzles.id
-  http_method = aws_api_gateway_method.post_puzzles.http_method
-  status_code = "200"
-
-  # CORSヘッダー
-  response_parameters = {
-    "method.response.header.Access-Control-Allow-Origin" = true
-  }
-
-  response_models = {
-    "application/json" = "Empty"
-  }
-}
-
-# --------------------------------------------
-# 6. CORS設定: OPTIONS /puzzles
-# --------------------------------------------
-# ブラウザからのリクエストに必要なCORS設定
-
-# OPTIONSメソッド
-resource "aws_api_gateway_method" "options_puzzles" {
+# ブラウザからのプリフライトリクエスト対応
+resource "aws_api_gateway_method" "proxy_options" {
   rest_api_id   = aws_api_gateway_rest_api.main.id
-  resource_id   = aws_api_gateway_resource.puzzles.id
+  resource_id   = aws_api_gateway_resource.proxy.id
   http_method   = "OPTIONS"
   authorization = "NONE"
 }
 
 # OPTIONSメソッドの統合（Mockレスポンス）
-resource "aws_api_gateway_integration" "options_puzzles" {
+resource "aws_api_gateway_integration" "proxy_options" {
   rest_api_id = aws_api_gateway_rest_api.main.id
-  resource_id = aws_api_gateway_resource.puzzles.id
-  http_method = aws_api_gateway_method.options_puzzles.http_method
+  resource_id = aws_api_gateway_resource.proxy.id
+  http_method = aws_api_gateway_method.proxy_options.http_method
   type        = "MOCK"
 
   request_templates = {
@@ -117,10 +89,10 @@ resource "aws_api_gateway_integration" "options_puzzles" {
 }
 
 # OPTIONSメソッドのレスポンス
-resource "aws_api_gateway_method_response" "options_puzzles_200" {
+resource "aws_api_gateway_method_response" "proxy_options_200" {
   rest_api_id = aws_api_gateway_rest_api.main.id
-  resource_id = aws_api_gateway_resource.puzzles.id
-  http_method = aws_api_gateway_method.options_puzzles.http_method
+  resource_id = aws_api_gateway_resource.proxy.id
+  http_method = aws_api_gateway_method.proxy_options.http_method
   status_code = "200"
 
   response_parameters = {
@@ -135,11 +107,11 @@ resource "aws_api_gateway_method_response" "options_puzzles_200" {
 }
 
 # OPTIONSメソッドの統合レスポンス
-resource "aws_api_gateway_integration_response" "options_puzzles_200" {
+resource "aws_api_gateway_integration_response" "proxy_options_200" {
   rest_api_id = aws_api_gateway_rest_api.main.id
-  resource_id = aws_api_gateway_resource.puzzles.id
-  http_method = aws_api_gateway_method.options_puzzles.http_method
-  status_code = aws_api_gateway_method_response.options_puzzles_200.status_code
+  resource_id = aws_api_gateway_resource.proxy.id
+  http_method = aws_api_gateway_method.proxy_options.http_method
+  status_code = aws_api_gateway_method_response.proxy_options_200.status_code
 
   response_parameters = {
     "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
@@ -163,7 +135,7 @@ resource "aws_lambda_permission" "api_gateway_invoke_puzzle_register" {
 }
 
 # --------------------------------------------
-# 8. デプロイメント
+# 6. デプロイメント
 # --------------------------------------------
 # API Gatewayを実際に使えるようにデプロイ
 resource "aws_api_gateway_deployment" "main" {
@@ -172,11 +144,11 @@ resource "aws_api_gateway_deployment" "main" {
   # リソースが変更されたら自動的に再デプロイ
   triggers = {
     redeployment = sha1(jsonencode([
-      aws_api_gateway_resource.puzzles.id,
-      aws_api_gateway_method.post_puzzles.id,
-      aws_api_gateway_integration.lambda_post_puzzles.id,
-      aws_api_gateway_method.options_puzzles.id,
-      aws_api_gateway_integration.options_puzzles.id,
+      aws_api_gateway_resource.proxy.id,
+      aws_api_gateway_method.proxy.id,
+      aws_api_gateway_integration.lambda_proxy.id,
+      aws_api_gateway_method.proxy_options.id,
+      aws_api_gateway_integration.proxy_options.id,
     ]))
   }
 
@@ -185,8 +157,8 @@ resource "aws_api_gateway_deployment" "main" {
   }
 
   depends_on = [
-    aws_api_gateway_integration.lambda_post_puzzles,
-    aws_api_gateway_integration.options_puzzles,
+    aws_api_gateway_integration.lambda_proxy,
+    aws_api_gateway_integration.proxy_options,
   ]
 }
 
@@ -233,7 +205,7 @@ resource "aws_cloudwatch_log_group" "api_gateway" {
 }
 
 # --------------------------------------------
-# 11. メソッド設定（オプション）
+# 7. メソッド設定（オプション）
 # --------------------------------------------
 # スロットリング、キャッシュなどの設定
 resource "aws_api_gateway_method_settings" "main" {

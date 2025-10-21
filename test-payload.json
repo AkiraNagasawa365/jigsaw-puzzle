@@ -1,0 +1,10 @@
+{
+  "httpMethod": "GET",
+  "path": "/users/anonymous/puzzles",
+  "headers": {
+    "origin": "https://dykwhpbm0bhdv.cloudfront.net"
+  },
+  "queryStringParameters": null,
+  "pathParameters": null,
+  "requestContext": {}
+}
