@@ -41,28 +41,56 @@ find ./backend -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
 find ./backend -name "*.pyc" -type f -delete
 
 echo "Step 3: Exporting dependencies from uv..."
-# uvからrequirements.txtを生成（Lambda用）
+# uvからrequirements.txtを生成（Lambda用、開発用依存関係を除外）
 cd ../..
-uv export --no-hashes --format requirements-txt > lambda/puzzle-register/requirements.txt
+uv export --no-hashes --no-dev --format requirements-txt > lambda/puzzle-register/requirements-full.txt
+
+# プロジェクト自身（jigsaw-puzzle）を除外してrequirements.txtを作成
+grep -v "jigsaw-puzzle" lambda/puzzle-register/requirements-full.txt | \
+  grep -v "^-e " | \
+  grep -v "file://" > lambda/puzzle-register/requirements.txt
+
+rm lambda/puzzle-register/requirements-full.txt
 cd lambda/puzzle-register
 
-echo "Step 4: Packaging Lambda function..."
-# .env, __pycache__, .pyc ファイルを明示的に除外
-zip -r function.zip index.py backend/ requirements.txt \
+echo "Step 4: Installing dependencies for Linux (Lambda runtime)..."
+# 一時ディレクトリを作成
+mkdir -p package
+
+# Linux互換の依存関係をインストール
+# legacy-resolverを使用して依存関係の競合を回避
+python3 -m pip install \
+  --platform manylinux2014_x86_64 \
+  --target=./package \
+  --implementation cp \
+  --python-version 3.12 \
+  --only-binary=:all: \
+  --upgrade \
+  --use-deprecated=legacy-resolver \
+  -r requirements.txt
+
+echo "Step 5: Packaging Lambda function..."
+# packageディレクトリの内容をzipに追加（依存関係）
+cd package
+zip -r ../function.zip . -q
+cd ..
+
+# index.pyとbackendディレクトリを追加（アプリケーションコード）
+zip -ur function.zip index.py backend/ \
     -x "*.env*" "*/__pycache__/*" "*.pyc" "*.pyo" ".DS_Store" \
     -q
 
 FILE_SIZE=$(du -h function.zip | cut -f1)
 echo "Package size: $FILE_SIZE"
 
-echo "Step 5: Deploying to AWS Lambda..."
+echo "Step 6: Deploying to AWS Lambda..."
 aws lambda update-function-code \
     --function-name "$FUNCTION_NAME" \
     --zip-file fileb://function.zip \
     --output json > /dev/null
 
-echo "Step 6: Cleaning up..."
-rm -rf backend requirements.txt
+echo "Step 7: Cleaning up temporary files..."
+rm -rf backend requirements.txt package
 
 echo ""
 echo "==================================="
