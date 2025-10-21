@@ -16,13 +16,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - S3（画像ストレージ）
 
 **フロントエンド:**
-- React 18 + TypeScript
+- React 19 + TypeScript
 - Vite（ビルドツール）
 - React Router
+- AWS Amplify（認証統合）
+- AWS Cognito（ユーザー認証）
 
 **インフラ:**
 - Terraform（IaC）
-- AWS（Lambda, API Gateway, DynamoDB, S3, CloudFront）
+- AWS（Lambda, API Gateway, DynamoDB, S3, CloudFront, Cognito）
 
 ## よく使うコマンド
 
@@ -165,18 +167,25 @@ backend/app/
 
 frontend/src/
 ├── components/           # 再利用可能なReactコンポーネント
-│   └── PuzzleList.tsx
+│   ├── PuzzleList.tsx
+│   └── ProtectedRoute.tsx  # 認証が必要なルート用
 ├── pages/               # ページコンポーネント
 │   ├── Home.tsx
+│   ├── auth/           # 認証関連ページ
+│   │   ├── Login.tsx
+│   │   └── Register.tsx
 │   └── puzzles/
 │       ├── PuzzleCreate.tsx
 │       └── PuzzleDetail.tsx
-├── types/               # TypeScript型定義
+├── contexts/           # Reactコンテキスト
+│   └── AuthContext.tsx # 認証状態管理
+├── types/              # TypeScript型定義
 │   └── puzzle.ts
 ├── config/
-│   └── api.ts          # APIベースURL設定
-├── App.tsx             # ルーティングを含むメインアプリ
-└── main.tsx            # Reactエントリーポイント
+│   ├── api.ts         # APIベースURL設定
+│   └── amplify.ts     # AWS Amplify設定
+├── App.tsx            # ルーティングを含むメインアプリ
+└── main.tsx           # Reactエントリーポイント
 
 terraform/
 ├── modules/            # 再利用可能なTerraformモジュール
@@ -223,6 +232,18 @@ lambda/
 - すべてのfetch呼び出しで `${API_BASE_URL}/endpoint` を使用
 
 これにより、ローカルFastAPIと本番LambdaのAPIをシームレスに切り替えられます。
+
+### 認証アーキテクチャ
+
+**AWS Cognito統合:**
+- フロントエンドは `aws-amplify` を使用してCognitoと統合
+- `AuthContext` がユーザーの認証状態を管理
+- `ProtectedRoute` コンポーネントで保護されたページへのアクセスを制御
+- 認証フロー: ユーザー登録 → メール確認 → ログイン → ID Token取得
+
+**設定:**
+- `frontend/src/config/amplify.ts`: Amplify設定（Cognito UserPoolとClientID）
+- 環境変数: `VITE_COGNITO_USER_POOL_ID`, `VITE_COGNITO_CLIENT_ID`
 
 ### テスト戦略
 
@@ -299,11 +320,19 @@ CORSは `ALLOWED_ORIGINS` 環境変数で設定されます：
 ### フロントエンド環境変数
 
 Viteでは環境変数に `VITE_` プレフィックスが必要です：
-- `.env`: デフォルト値（コミット済み）
-- `.env.local`: ローカル上書き（gitignore対象）
+- `.env`: デフォルト値（**削除済み** - セキュリティ上の理由）
+- `.env.local`: ローカル上書き（gitignore対象、各開発者が作成）
 - `.env.production`: 本番環境値（コミット済み）
 
+**重要な環境変数:**
+- `VITE_API_BASE_URL`: APIエンドポイント
+- `VITE_COGNITO_USER_POOL_ID`: Cognito User Pool ID
+- `VITE_COGNITO_CLIENT_ID`: Cognito App Client ID
+- `VITE_AWS_REGION`: AWSリージョン（デフォルト: ap-northeast-1）
+
 TypeScriptでのアクセス: `import.meta.env.VITE_API_BASE_URL`
+
+**注意**: `.env.example` ファイルは削除されました。環境変数は各自でTerraform outputから取得して `.env.local` に設定してください。
 
 ### APIエンドポイントパターン
 
@@ -313,6 +342,16 @@ TypeScriptでのアクセス: `import.meta.env.VITE_API_BASE_URL`
 - `GET /users/{userId}/puzzles` - ユーザーのパズル一覧取得
 - `POST /puzzles/{puzzleId}/upload` - アップロードURL取得
 
+### React 19とAWS Amplifyの互換性
+
+このプロジェクトは **React 19** を使用しています。`aws-amplify` と `@aws-amplify/ui-react` は React 19 をサポートしています：
+- `aws-amplify`: ^6.15.7
+- `@aws-amplify/ui-react`: ^6.13.0
+
+**依存関係管理:**
+- フロントエンドの依存関係は `frontend/package.json` で管理
+- バックエンドの依存関係は `pyproject.toml` で管理（uvパッケージマネージャー）
+
 ### セキュリティ考慮事項
 
 1. **XSS保護**: `schemas.py` のバリデーターがHTMLタグと危険な文字を除去
@@ -321,13 +360,27 @@ TypeScriptでのアクセス: `import.meta.env.VITE_API_BASE_URL`
 4. **IAM**: Lambdaは最小限の権限のみ（S3バケット、DynamoDBテーブルのみ）
 5. **CORS**: 許可オリジンを明示的にホワイトリスト化
 6. **Lambdaに.envなし**: `deploy-lambda.sh` がパッケージング前に `.env` ファイルを明示的に削除
+7. **Cognito認証**: フロントエンドでユーザー認証を実装（ID Tokenをバックエンドに送信）
 
 ## 開発ワークフロー
 
-1. **ローカルバックエンド起動**: `cd backend && uv run uvicorn app.api.main:app --reload`
-2. **フロントエンド起動**: `cd frontend && npm run dev`
-3. **変更**: `backend/app/services/` の共有サービスを編集
-4. **ローカルテスト**: http://localhost:5173 経由でテスト
-5. **テスト実行**: `cd backend && uv run pytest`
-6. **Lambdaへデプロイ**: `./scripts/deploy-lambda.sh`
-7. **インフラ更新**: `cd terraform/environments/dev && terraform apply`
+1. **環境変数セットアップ**:
+   - Terraformでインフラをデプロイ後、outputからCognito情報を取得
+   - `frontend/.env.local` を作成し、必要な環境変数を設定
+   - `backend/.env` を作成（ローカル開発用）
+
+2. **ローカルバックエンド起動**: `cd backend && uv run uvicorn app.api.main:app --reload`
+
+3. **フロントエンド起動**: `cd frontend && npm run dev`
+
+4. **変更**: `backend/app/services/` の共有サービスを編集
+
+5. **ローカルテスト**: http://localhost:5173 経由でテスト
+   - 未認証時: ログイン/登録ページが表示される
+   - 認証後: パズル一覧、作成、アップロードが可能
+
+6. **テスト実行**: `cd backend && uv run pytest`
+
+7. **Lambdaへデプロイ**: `./scripts/deploy-lambda.sh`
+
+8. **インフラ更新**: `cd terraform/environments/dev && terraform apply`

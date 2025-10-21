@@ -37,7 +37,7 @@
     - `lambda/puzzle-register/index.py`: 動的CORS実装（リクエストOriginベース）
     - `terraform/modules/lambda/`: allowed_origins変数を追加
     - `terraform/environments/dev/variables.tf`: 複数オリジン対応（localhost:3000, 5173, CloudFront）
-    - `backend/.env.example`: ALLOWED_ORIGINS追加（デフォルト: localhost:3000,5173）
+    - `scripts/sync_config.py backend`: ローカル用 ALLOWED_ORIGINS を localhost:5173,3000 で生成
     - `README.md`: 環境変数の説明を追加
 
 - [x] **1.2 エラー情報露出の防止** (30分) ✅ 2025-10-19 完了

@@ -10,6 +10,8 @@
 ## Build, Test, and Development Commands
 - `uv sync` to install Python deps; `uv run uvicorn app.api.main:app --reload` (from `backend/`) starts the API on :8000.
 - `uv run pytest` runs backend tests; add `--cov=backend --cov-report=term-missing` when checking coverage.
+- `uv run python scripts/sync_config.py backend` creates `backend/.env.local` with localhost defaults; pass `--environment dev` to mirror AWS dev settings.
+- `uv run python scripts/sync_config.py frontend` generates `frontend/.env.local` pointing to localhost; add `--environment dev` (or staging/prod) to pull values from SSM.
 - `npm install` then `npm run dev` (inside `frontend/`) launches the Vite dev server on :5173; `npm run build` emits the production bundle, `npm run lint` applies ESLint.
 - For infra, `cd terraform/environments/<env>` and run `terraform init`, `terraform plan`, `terraform apply`; ship Lambda changes with `./scripts/deploy-lambda.sh`.
 
@@ -28,4 +30,5 @@
 
 ## Environment & Configuration Tips
 - Export AWS variables (`AWS_REGION`, `S3_BUCKET_NAME`, etc.) before running the backend and never commit secrets or `.env` files.
-- Keep Lambda and backend dependencies aligned by regenerating lockfiles with `uv sync`, and ensure Terraform state stays in the configured remote backend; run `terraform fmt` before commits.
+- Backend・Frontend config values live in SSM under `/<project>/(backend|frontend)/<env>/`; local work uses the default sync commands (localhost設定)、`--environment dev` などを指定するとAWS値を取得できます。CI/CDは同じパラメータを使って値を注入します。
+- Keep Lambda and backend dependencies aligned by regenerating lockfiles with `uv sync`, ensure Terraform state stays in the configured remote backend, and run `terraform fmt` before commits.

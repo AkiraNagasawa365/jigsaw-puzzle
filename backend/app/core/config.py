@@ -9,14 +9,15 @@ from pathlib import Path
 from typing import List
 from dotenv import load_dotenv
 
-# .envファイルを自動読み込み（ローカル開発用）
-# Lambda環境では.envファイルが存在しないため、何も読み込まれない
-# find_dotenv()で.envファイルを探し、存在する場合のみ読み込む
-env_path = Path(__file__).parent.parent.parent / '.env'
-if env_path.exists():
-    load_dotenv(dotenv_path=env_path)
-    # ログ設定前なので、ここだけはprintを使用
-    print(f"✅ Loaded environment variables from {env_path}")
+# .env/.env.localファイルを自動読み込み（ローカル開発用）
+# Lambda環境ではこれらのファイルが存在しないため自動的にスキップされる
+base_dir = Path(__file__).parent.parent.parent
+for dotenv_name in (".env.local", ".env"):
+    env_path = base_dir / dotenv_name
+    if env_path.exists():
+        load_dotenv(dotenv_path=env_path, override=True)
+        # ログ設定前なので、ここだけはprintを使用
+        print(f"✅ Loaded environment variables from {env_path}")
 
 
 class Settings:

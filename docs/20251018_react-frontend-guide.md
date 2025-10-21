@@ -92,7 +92,8 @@ const response = await fetch(`${API_BASE_URL}/puzzles`)
 
 ### バックエンド環境変数
 
-バックエンドはローカル開発時に以下の環境変数を設定する必要があります:
+バックエンドはローカル開発時に `uv run python scripts/sync_config.py backend` を実行すると
+`.env.local` が生成され自動で読み込まれます。手動でエクスポートする場合の例は以下の通りです。
 
 ```bash
 # AWS設定
@@ -108,10 +109,8 @@ export PIECES_TABLE_NAME=jigsaw-puzzle-dev-pieces
 export ENVIRONMENT=dev
 
 # CORS設定（カンマ区切り）
-export ALLOWED_ORIGINS="http://localhost:3000,http://localhost:5173,https://dykwhpbm0bhdv.cloudfront.net"
+export ALLOWED_ORIGINS="http://localhost:5173,http://localhost:3000,https://dykwhpbm0bhdv.cloudfront.net"
 ```
-
-参考ファイル: `backend/.env.example`
 
 **設定の読み込み:**
 ```python
@@ -551,8 +550,9 @@ has been blocked by CORS policy
 CORS設定は環境変数 `ALLOWED_ORIGINS` で制御されています。
 
 ```bash
-# backend/.env.example を参照
-export ALLOWED_ORIGINS="http://localhost:3000,http://localhost:5173"
+uv run python scripts/sync_config.py backend  # .env.local を生成
+# または手動で設定する場合:
+export ALLOWED_ORIGINS="http://localhost:5173,http://localhost:3000"
 ```
 
 設定ファイルの場所:

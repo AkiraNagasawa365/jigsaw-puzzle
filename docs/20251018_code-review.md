@@ -292,7 +292,7 @@ logger.info(json.dumps({
 **問題:**
 - 毎回 `export` が必要
 - デフォルト値がハードコード
-- `.env.example` が活用されていない
+- `.env.local` を自動生成する仕組みがない（旧 `.env.example` は廃止予定）
 
 **推奨対応:**
 ```bash

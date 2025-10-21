@@ -21,7 +21,9 @@ pip install -r requirements.txt
 
 ### 2. 環境変数の設定
 
-環境変数を直接エクスポート：
+ローカル開発では `uv run python scripts/sync_config.py backend` を実行すると
+`backend/.env.local` が生成され、FastAPI 実行時に自動読み込みされます。
+直接エクスポートする場合は以下を参考にしてください。
 
 ```bash
 export AWS_REGION=ap-northeast-1
@@ -30,9 +32,8 @@ export S3_BUCKET_NAME=jigsaw-puzzle-dev-images
 export PUZZLES_TABLE_NAME=jigsaw-puzzle-dev-puzzles
 export PIECES_TABLE_NAME=jigsaw-puzzle-dev-pieces
 export ENVIRONMENT=dev
+export ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
 ```
-
-**参考**: デフォルト値は `.env.example` に記載されています。
 
 ### 3. AWS認証情報の設定
 
@@ -214,7 +215,6 @@ backend/
 ├── app.py              # FastAPI アプリケーション
 ├── puzzle_logic.py     # ビジネスロジック（Lambda共通）
 ├── requirements.txt    # 依存関係
-├── .env.example        # 環境変数の例
 └── README.md          # このファイル
 ```
 

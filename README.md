@@ -335,7 +335,9 @@ const response = await fetch(`${API_BASE_URL}/puzzles`)
 
 ### バックエンド（ローカル開発用）
 
-ローカル開発では環境変数を直接エクスポートします：
+ローカル開発では `uv run python scripts/sync_config.py backend` を実行すると
+`backend/.env.local` が生成され、FastAPI 起動時に自動読み込みされます。
+直接エクスポートしたい場合の例は以下の通りです。
 
 ```bash
 export AWS_REGION=ap-northeast-1
@@ -344,13 +346,11 @@ export S3_BUCKET_NAME=jigsaw-puzzle-dev-images
 export PUZZLES_TABLE_NAME=jigsaw-puzzle-dev-puzzles
 export PIECES_TABLE_NAME=jigsaw-puzzle-dev-pieces
 export ENVIRONMENT=dev
-export ALLOWED_ORIGINS=http://localhost:3000
+export ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
 ```
 
-**参考**: デフォルト値は `backend/.env.example` に記載されています。
-
 **ALLOWED_ORIGINS**: CORS許可オリジン（カンマ区切りで複数指定可）
-- 開発環境: `http://localhost:3000`
+- 開発環境: `http://localhost:5173`, `http://localhost:3000`
 - 本番環境: `https://your-cloudfront-domain.cloudfront.net`
 
 ### Lambda用（本番環境）
@@ -442,4 +442,3 @@ npm run type-check
 # Lintチェック（設定されている場合）
 npm run lint
 ```
-
