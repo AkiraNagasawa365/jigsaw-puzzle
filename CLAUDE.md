@@ -4,31 +4,31 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## プロジェクト概要
 
-ジグソーパズル支援システム - ユーザーがジグソーパズルを登録し、ピース画像をアップロードして、ピースの位置を特定できるWebアプリケーション。Reactフロントエンド、FastAPIバックエンド（ローカル開発）、AWS Lambda（本番環境）、Terraformでインフラ構築。
+ジグソーパズル支援システム - ユーザーがジグソーパズルを登録し、ピース画像をアップロードして、ピースの位置を特定できるWebアプリケーション。Reactフロントエンド、FastAPIバックエンド(ローカル開発)、AWS Lambda(本番環境)、Terraformでインフラ構築。
 
 ## 技術スタック
 
 **バックエンド:**
-- Python 3.12（uvで管理）
-- FastAPI（ローカル開発）
-- AWS Lambda（本番環境）
-- DynamoDB（データベース）
-- S3（画像ストレージ）
+- Python 3.12(uvで管理)
+- FastAPI(ローカル開発)
+- AWS Lambda(本番環境)
+- DynamoDB(データベース)
+- S3(画像ストレージ)
 
 **フロントエンド:**
 - React 19 + TypeScript
-- Vite（ビルドツール）
+- Vite(ビルドツール)
 - React Router
-- AWS Amplify（認証統合）
-- AWS Cognito（ユーザー認証）
+- AWS Amplify(認証統合)
+- AWS Cognito(ユーザー認証)
 
 **インフラ:**
-- Terraform（IaC）
-- AWS（Lambda, API Gateway, DynamoDB, S3, CloudFront, Cognito）
+- Terraform(IaC)
+- AWS(Lambda, API Gateway, DynamoDB, S3, CloudFront, Cognito)
 
 ## よく使うコマンド
 
-**重要**: 特に指定がない限り、すべてのコマンドはプロジェクトルート（`/Users/akira.nagasawa/Documents/elith/code/jigsaw-puzzle`）から実行してください。`cd` コマンドで示されている場合は、そのディレクトリに移動してからコマンドを実行します。
+**重要**: 特に指定がない限り、すべてのコマンドはプロジェクトルート(`/Users/akira.nagasawa/Documents/elith/code/jigsaw-puzzle`)から実行してください。`cd` コマンドで示されている場合は、そのディレクトリに移動してからコマンドを実行します。
 
 ### バックエンド開発
 
@@ -62,7 +62,7 @@ cd frontend
 # 依存関係をインストール
 npm install
 
-# 開発サーバーを起動（http://localhost:5173）
+# 開発サーバーを起動(http://localhost:5173)
 npm run dev
 
 # 型チェック
@@ -81,7 +81,7 @@ npm run preview
 ### テスト
 
 ```bash
-# バックエンドのテスト（カバレッジ付き）
+# バックエンドのテスト(カバレッジ付き)
 cd backend
 uv run pytest                              # 全テストを実行
 uv run pytest tests/unit/ -v              # 単体テストのみ
@@ -98,7 +98,7 @@ uv run mypy app/                           # 型チェック実行
 
 # フロントエンドのテスト
 cd frontend
-npm run test                               # Vitestを実行（ウォッチモード）
+npm run test                               # Vitestを実行(ウォッチモード)
 npm run test:coverage                      # カバレッジレポート付き
 npm run test:ui                            # Vitest UIを起動
 ```
@@ -109,10 +109,10 @@ npm run test:ui                            # Vitest UIを起動
 # Lambda関数をデプロイ
 ./scripts/deploy-lambda.sh
 
-# フロントエンドをデプロイ（S3 + CloudFront）
+# フロントエンドをデプロイ(S3 + CloudFront)
 ./scripts/deploy-frontend.sh
 
-# Terraform（インフラ）
+# Terraform(インフラ)
 cd terraform/environments/dev
 terraform init
 terraform plan
@@ -121,26 +121,26 @@ terraform apply
 
 ### CI/CD
 
-GitHub Actionsワークフローが設定されています：
+GitHub Actionsワークフローが設定されています:
 
 - **CI** (`.github/workflows/ci.yml`): プッシュ時に自動テスト・Lint・型チェック実行
 - **Lambda Deploy** (`.github/workflows/deploy-lambda.yml`): Lambda関数の自動デプロイ
 - **Frontend Deploy** (`.github/workflows/deploy-frontend.yml`): フロントエンドの自動デプロイ
 
 **GitHub OIDC認証:**
-- AWSへの認証にGitHub OIDCを使用（IAM Userの長期クレデンシャル不要）
+- AWSへの認証にGitHub OIDCを使用(IAM Userの長期クレデンシャル不要)
 - `terraform/modules/github-oidc/` にTerraformモジュールあり
 - セットアップ手順: `docs/20251022_github-oidc-setup.md` を参照
-- GitHub Secretsに認証情報を保存する必要なし（OIDC経由で一時クレデンシャル取得）
+- GitHub Secretsに認証情報を保存する必要なし(OIDC経由で一時クレデンシャル取得)
 
 ## 全体アーキテクチャ
 
 ### デュアルバックエンドパターン
 
-このプロジェクトは、ローカル開発と本番環境の両方をサポートするために**デュアルバックエンドアーキテクチャ**を採用しています：
+このプロジェクトは、ローカル開発と本番環境の両方をサポートするために**デュアルバックエンドアーキテクチャ**を採用しています:
 
-1. **ローカル開発（FastAPI）**: `backend/app/` に配置、標準的なWebサーバーとして動作
-2. **本番環境（Lambda）**: `lambda/puzzle-register/` に配置、サーバーレス関数として動作
+1. **ローカル開発(FastAPI)**: `backend/app/` に配置、標準的なWebサーバーとして動作
+2. **本番環境(Lambda)**: `lambda/puzzle-register/` に配置、サーバーレス関数として動作
 3. **共通ビジネスロジック**: 両方のバックエンドが `backend/app/services/` と `backend/app/core/` の同じコードを使用
 
 Lambdaデプロイ時、`deploy-lambda.sh` スクリプトが `backend/app/` をLambdaパッケージにコピーし、両環境で同一のビジネスロジックが実行されることを保証します。
@@ -152,26 +152,26 @@ Lambdaデプロイ時、`deploy-lambda.sh` スクリプトが `backend/app/` を
 - Lambda本番: Terraform経由で環境変数として注入
 - 設定クラス: `backend/app/core/config.py` (`Settings` クラス)
 
-`Settings` クラスは、利用可能な場合は `.env` ファイルを使用し（ローカル開発）、なければ環境変数にフォールバック（Lambda）します。これにより、同じコードが両環境で動作します。
+`Settings` クラスは、利用可能な場合は `.env` ファイルを使用し(ローカル開発)、なければ環境変数にフォールバック(Lambda)します。これにより、同じコードが両環境で動作します。
 
 **主要な環境変数:**
 - `S3_BUCKET_NAME`: 画像用S3バケット
 - `PUZZLES_TABLE_NAME`: パズル用DynamoDBテーブル
-- `PIECES_TABLE_NAME`: ピース用DynamoDBテーブル（将来の使用）
+- `PIECES_TABLE_NAME`: ピース用DynamoDBテーブル(将来の使用)
 - `ENVIRONMENT`: dev/staging/prod
-- `AWS_REGION`: AWSリージョン（デフォルト: ap-northeast-1）
-- `ALLOWED_ORIGINS`: CORS許可オリジン（カンマ区切り）
+- `AWS_REGION`: AWSリージョン(デフォルト: ap-northeast-1)
+- `ALLOWED_ORIGINS`: CORS許可オリジン(カンマ区切り)
 
 ### データフロー
 
 1. **パズル作成**:
-   - フロントエンド → API（FastAPI/Lambda）→ DynamoDB（status "pending" でパズルレコード作成）
+   - フロントエンド → API(FastAPI/Lambda) → DynamoDB(status "pending" でパズルレコード作成)
    - フロントエンドに `puzzleId` を返却
 
 2. **画像アップロード**:
-   - フロントエンド → API（Pre-signed URL をリクエスト）
-   - API → S3（Pre-signed URL を生成）
-   - フロントエンド → S3（Pre-signed URL を使って直接アップロード）
+   - フロントエンド → API(Pre-signed URL をリクエスト)
+   - API → S3(Pre-signed URL を生成)
+   - フロントエンド → S3(Pre-signed URL を使って直接アップロード)
    - パズルのステータスを "uploaded" に更新
 
 3. **将来実装予定: 画像処理**:
@@ -189,12 +189,12 @@ backend/app/
 │   └── routes/
 │       └── puzzles.py    # パズル関連のAPIルート
 ├── core/
-│   ├── config.py         # 設定（環境変数）
+│   ├── config.py         # 設定(環境変数)
 │   ├── schemas.py        # バリデーション用Pydanticモデル
 │   └── logger.py         # ロギング設定
 └── services/
-    ├── puzzle_service.py # コアビジネスロジック（Lambdaと共有）
-    └── image_processor.py # 画像処理（将来実装）
+    ├── puzzle_service.py # コアビジネスロジック(Lambdaと共有)
+    └── image_processor.py # 画像処理(将来実装)
 
 frontend/src/
 ├── components/           # 再利用可能なReactコンポーネント
@@ -238,7 +238,7 @@ lambda/
 
 ### サービスレイヤーパターン
 
-`PuzzleService` クラス（`backend/app/services/puzzle_service.py`）はパズル関連のビジネスロジックをすべてカプセル化しています：
+`PuzzleService` クラス(`backend/app/services/puzzle_service.py`)はパズル関連のビジネスロジックをすべてカプセル化しています:
 - `create_puzzle()`: DynamoDBにパズルレコードを作成
 - `generate_upload_url()`: S3のPre-signed URLを生成
 - `get_puzzle()`: IDでパズルを取得
@@ -248,18 +248,18 @@ lambda/
 
 ### スキーマバリデーション
 
-`backend/app/core/schemas.py` のPydanticモデルは以下を提供します：
+`backend/app/core/schemas.py` のPydanticモデルは以下を提供します:
 - 型バリデーション
-- XSS保護（HTMLタグや危険な文字を除去）
-- フィールド制約（最小/最大長、許可された値）
+- XSS保護(HTMLタグや危険な文字を除去)
+- フィールド制約(最小/最大長、許可された値)
 - FastAPI経由での自動APIドキュメント生成
 
 例: `PuzzleCreateRequest` は `pieceCount` が [100, 300, 500, 1000, 2000] のいずれかであることを強制します。
 
 ### フロントエンドAPI統合
 
-フロントエンドは環境変数でAPIエンドポイントを設定します：
-- `.env` の `VITE_API_BASE_URL`（デフォルトは http://localhost:8000）
+フロントエンドは環境変数でAPIエンドポイントを設定します:
+- `.env` の `VITE_API_BASE_URL`(デフォルトは http://localhost:8000)
 - `src/config/api.ts` のAPIクライアントが `API_BASE_URL` をエクスポート
 - すべてのfetch呼び出しで `${API_BASE_URL}/endpoint` を使用
 
@@ -274,63 +274,63 @@ lambda/
 - 認証フロー: ユーザー登録 → メール確認 → ログイン → ID Token取得
 
 **設定:**
-- `frontend/src/config/amplify.ts`: Amplify設定（Cognito UserPoolとClientID）
+- `frontend/src/config/amplify.ts`: Amplify設定(Cognito UserPoolとClientID)
 - 環境変数: `VITE_COGNITO_USER_POOL_ID`, `VITE_COGNITO_CLIENT_ID`
 
 ### テスト戦略
 
 **バックエンド:**
-- `backend/tests/unit/`: 単体テスト（外部依存なし）
-- `backend/tests/integration/`: 統合テスト（`moto` を使ったAWSモック付き）
+- `backend/tests/unit/`: 単体テスト(外部依存なし)
+- `backend/tests/integration/`: 統合テスト(`moto` を使ったAWSモック付き)
 - `backend/tests/conftest.py`: 共有pytestフィクスチャ
 - テストマーカー: `@pytest.mark.unit`, `@pytest.mark.integration`, `@pytest.mark.security`, `@pytest.mark.validation`
-- カバレッジ要件: 最小80%（`pytest.ini`で強制）
+- カバレッジ要件: 最小80%(`pytest.ini`で強制)
 - カバレッジレポート: `backend/htmlcov/` にHTMLレポート
 
 **フロントエンド:**
 - `frontend/src/components/__tests__/`: コンポーネントテスト
 - `frontend/src/pages/__tests__/`: ページコンポーネントテスト
-- `frontend/src/test/setup.ts`: Vitestセットアップ（グローバル設定）
+- `frontend/src/test/setup.ts`: Vitestセットアップ(グローバル設定)
 - テストフレームワーク: Vitest + React Testing Library
 - カバレッジレポート: `frontend/coverage/` に生成
 
 ### DynamoDBスキーマ
 
 **Puzzlesテーブル:**
-- PK: `userId`（String）
-- SK: `puzzleId`（UUID String）
+- PK: `userId`(String)
+- SK: `puzzleId`(UUID String)
 - 属性: `puzzleName`, `pieceCount`, `fileName`, `s3Key`, `status`, `createdAt`, `updatedAt`
-- GSI: `CreatedAtIndex` （時系列クエリ用）
+- GSI: `CreatedAtIndex` (時系列クエリ用)
 
 **ステータスフロー:** pending → uploaded → processing → completed
 
-**Piecesテーブル**（将来実装）:
+**Piecesテーブル**(将来実装):
 - PK: `puzzleId`
 - SK: `pieceId`
-- 属性: `position`（Map）, `imageFeatures`, `matched`, `placedAt`
+- 属性: `position`(Map), `imageFeatures`, `matched`, `placedAt`
 
 ### Terraformモジュールパターン
 
-各AWSリソースタイプには独自のモジュールがあります：
-- モジュールは環境（dev/staging/prod）間で再利用可能
+各AWSリソースタイプには独自のモジュールがあります:
+- モジュールは環境(dev/staging/prod)間で再利用可能
 - 環境固有の値は変数として渡される
 - モジュールからの出力は他のモジュールから参照可能
 - ステートは環境ごとに分離
 
-例: `terraform/modules/lambda/` はLambda関数、IAMロール、CloudWatch Logsを定義します。開発環境（`terraform/environments/dev/`）はdev固有の設定でインスタンス化します。
+例: `terraform/modules/lambda/` はLambda関数、IAMロール、CloudWatch Logsを定義します。開発環境(`terraform/environments/dev/`)はdev固有の設定でインスタンス化します。
 
 ### CORS設定
 
-CORSは `ALLOWED_ORIGINS` 環境変数で設定されます：
-- **ローカル開発**: `http://localhost:3000,http://localhost:5173`（旧ポートとViteポートの両方をサポート）
-- **本番環境**: CloudFrontドメイン（例: `https://d123.cloudfront.net`）
-- 設定場所: `backend/app/api/main.py`（FastAPIミドルウェア）
+CORSは `ALLOWED_ORIGINS` 環境変数で設定されます:
+- **ローカル開発**: `http://localhost:3000,http://localhost:5173`(旧ポートとViteポートの両方をサポート)
+- **本番環境**: CloudFrontドメイン(例: `https://d123.cloudfront.net`)
+- 設定場所: `backend/app/api/main.py`(FastAPIミドルウェア)
 
 ### ロギング
 
-`backend/app/core/logger.py` による集中ログ管理：
+`backend/app/core/logger.py` による集中ログ管理:
 - Pythonの `logging` モジュールを使用
-- 本番環境用JSON形式（Lambda → CloudWatch）
+- 本番環境用JSON形式(Lambda → CloudWatch)
 - ローカル開発用人間可読形式
 - 環境によってログレベルを制御
 
@@ -344,11 +344,11 @@ CORSは `ALLOWED_ORIGINS` 環境変数で設定されます：
 4. AWS CLI経由でAWS Lambdaにアップロード
 5. 一時ファイルをクリーンアップ
 
-**重要**: Lambda関数は `backend.app.*` パスからインポートする必要があります（例: `from backend.app.services.puzzle_service import PuzzleService`）。
+**重要**: Lambda関数は `backend.app.*` パスからインポートする必要があります(例: `from backend.app.services.puzzle_service import PuzzleService`)。
 
 ### uvによるPythonパッケージ管理
 
-このプロジェクトはpipの代わりに `uv`（モダンなPythonパッケージマネージャー）を使用します：
+このプロジェクトはpipの代わりに `uv`(モダンなPythonパッケージマネージャー)を使用します:
 - 依存関係は `pyproject.toml` で定義
 - ロックファイル: `uv.lock`
 - 仮想環境: `.venv/`
@@ -358,25 +358,25 @@ CORSは `ALLOWED_ORIGINS` 環境変数で設定されます：
 
 ### 型チェック設定
 
-`pyproject.toml` にmypy設定が含まれています：
+`pyproject.toml` にmypy設定が含まれています:
 - Python 3.12対応
-- 厳格な型チェック有効（`disallow_untyped_defs`）
-- 外部ライブラリ（boto3、moto等）は型チェックを緩和
-- テストコード（`tests/`）は型チェックを緩和
+- 厳格な型チェック有効(`disallow_untyped_defs`)
+- 外部ライブラリ(boto3、moto等)は型チェックを緩和
+- テストコード(`tests/`)は型チェックを緩和
 - FastAPIルート関数は`response_model`で型指定されるため緩和
 
 ### フロントエンド環境変数
 
-Viteでは環境変数に `VITE_` プレフィックスが必要です：
-- `.env`: デフォルト値（**削除済み** - セキュリティ上の理由）
-- `.env.local`: ローカル上書き（gitignore対象、各開発者が作成）
-- `.env.production`: 本番環境値（コミット済み）
+Viteでは環境変数に `VITE_` プレフィックスが必要です:
+- `.env`: デフォルト値(**削除済み** - セキュリティ上の理由)
+- `.env.local`: ローカル上書き(gitignore対象、各開発者が作成)
+- `.env.production`: 本番環境値(コミット済み)
 
 **重要な環境変数:**
 - `VITE_API_BASE_URL`: APIエンドポイント
 - `VITE_COGNITO_USER_POOL_ID`: Cognito User Pool ID
 - `VITE_COGNITO_CLIENT_ID`: Cognito App Client ID
-- `VITE_AWS_REGION`: AWSリージョン（デフォルト: ap-northeast-1）
+- `VITE_AWS_REGION`: AWSリージョン(デフォルト: ap-northeast-1)
 
 TypeScriptでのアクセス: `import.meta.env.VITE_API_BASE_URL`
 
@@ -392,30 +392,30 @@ TypeScriptでのアクセス: `import.meta.env.VITE_API_BASE_URL`
 
 ### React 19とAWS Amplifyの互換性
 
-このプロジェクトは **React 19** を使用しています。`aws-amplify` と `@aws-amplify/ui-react` は React 19 をサポートしています：
+このプロジェクトは **React 19** を使用しています。`aws-amplify` と `@aws-amplify/ui-react` は React 19 をサポートしています:
 - `aws-amplify`: ^6.15.7
 - `@aws-amplify/ui-react`: ^6.13.0
 
 **依存関係管理:**
 - フロントエンドの依存関係は `frontend/package.json` で管理
-- バックエンドの依存関係は `pyproject.toml` で管理（uvパッケージマネージャー）
+- バックエンドの依存関係は `pyproject.toml` で管理(uvパッケージマネージャー)
 
 ### セキュリティ考慮事項
 
 1. **XSS保護**: `schemas.py` のバリデーターがHTMLタグと危険な文字を除去
-2. **入力バリデーション**: Pydanticがフィールド制約（長さ、許可値）を強制
+2. **入力バリデーション**: Pydanticがフィールド制約(長さ、許可値)を強制
 3. **Pre-signed URL**: S3への直接アップロードでAPI経由の画像ルーティングを回避
-4. **IAM**: Lambdaは最小限の権限のみ（S3バケット、DynamoDBテーブルのみ）
+4. **IAM**: Lambdaは最小限の権限のみ(S3バケット、DynamoDBテーブルのみ)
 5. **CORS**: 許可オリジンを明示的にホワイトリスト化
 6. **Lambdaに.envなし**: `deploy-lambda.sh` がパッケージング前に `.env` ファイルを明示的に削除
-7. **Cognito認証**: フロントエンドでユーザー認証を実装（ID Tokenをバックエンドに送信）
+7. **Cognito認証**: フロントエンドでユーザー認証を実装(ID Tokenをバックエンドに送信)
 
 ## 開発ワークフロー
 
 1. **環境変数セットアップ**:
    - Terraformでインフラをデプロイ後、outputからCognito情報を取得
    - `frontend/.env.local` を作成し、必要な環境変数を設定
-   - `backend/.env` を作成（ローカル開発用）
+   - `backend/.env` を作成(ローカル開発用)
 
 2. **ローカルバックエンド起動**: `cd backend && uv run uvicorn app.api.main:app --reload`
 

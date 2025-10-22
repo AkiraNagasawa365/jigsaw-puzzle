@@ -40,7 +40,7 @@ class Settings:
 
         # CORS Configuration
         # デフォルト: Vite開発サーバー(5173)と旧ポート(3000)の両方を許可
-        allowed_origins_str = os.environ.get('ALLOWED_ORIGINS', 'http://localhost:3000,http://localhost:5173')
+        allowed_origins_str = os.environ.get('ALLOWED_ORIGINS', 'http://localhost:3000,http://localhost:5173,http://192.168.100.12:5173')
         self.allowed_origins: List[str] = [origin.strip() for origin in allowed_origins_str.split(',')]
 
     @property

@@ -23,7 +23,7 @@ LOCAL_BACKEND_ENV_LINES = [
     "PUZZLES_TABLE_NAME=jigsaw-puzzle-dev-puzzles",
     "PIECES_TABLE_NAME=jigsaw-puzzle-dev-pieces",
     "ENVIRONMENT=dev",
-    "ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000",
+    "ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000,http://192.168.100.12:5173",
 ]
 
 
