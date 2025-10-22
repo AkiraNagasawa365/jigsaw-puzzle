@@ -21,6 +21,14 @@ def setup_test_environment() -> None:
     scope="session": 全テストセッションで1回だけ実行
     autouse=True: 明示的に指定しなくても自動的に実行
     """
+    # AWS認証情報（motoを使う場合でもboto3初期化に必要）
+    os.environ.setdefault("AWS_ACCESS_KEY_ID", "testing")
+    os.environ.setdefault("AWS_SECRET_ACCESS_KEY", "testing")
+    os.environ.setdefault("AWS_SECURITY_TOKEN", "testing")
+    os.environ.setdefault("AWS_SESSION_TOKEN", "testing")
+    os.environ.setdefault("AWS_DEFAULT_REGION", "ap-northeast-1")
+
+    # アプリケーション環境変数
     os.environ.setdefault("ENVIRONMENT", "test")
     os.environ.setdefault("LOG_LEVEL", "DEBUG")
     os.environ.setdefault("S3_BUCKET_NAME", "test-bucket")
