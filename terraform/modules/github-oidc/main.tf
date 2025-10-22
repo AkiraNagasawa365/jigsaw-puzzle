@@ -125,5 +125,25 @@ data "aws_iam_policy_document" "cloudfront_invalidate" {
   }
 }
 
+# SSM Parameter Store読み取り権限（デプロイ設定の取得用）
+resource "aws_iam_role_policy" "ssm_read" {
+  name   = "ssm-read"
+  role   = aws_iam_role.github_actions.id
+  policy = data.aws_iam_policy_document.ssm_read.json
+}
+
+data "aws_iam_policy_document" "ssm_read" {
+  statement {
+    effect = "Allow"
+    actions = [
+      "ssm:GetParameter",
+      "ssm:GetParameters"
+    ]
+    resources = [
+      "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter/${var.project_name}/*"
+    ]
+  }
+}
+
 # 現在のAWSアカウントID取得
 data "aws_caller_identity" "current" {}
