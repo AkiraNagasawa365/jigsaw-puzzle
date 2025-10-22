@@ -29,7 +29,7 @@ variable "allowed_origins" {
 variable "github_org" {
   description = "GitHub organization or username (e.g., 'your-username')"
   type        = string
-  default     = "REPLACE_WITH_YOUR_GITHUB_USERNAME"  # あなたのGitHubユーザー名に置き換えてください
+  default     = "AkiraNagasawa365"
 }
 
 variable "github_repo" {

@@ -101,4 +101,4 @@ dist-ssr/
 # TypeScript
 *.tsbuildinfo
 
-images/
+images/terraform/**/tfplan
