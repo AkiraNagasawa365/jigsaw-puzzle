@@ -5,6 +5,7 @@ This module contains the core business logic for puzzle registration.
 It can be used by both FastAPI (local development) and AWS Lambda (production).
 """
 
+import os
 import uuid
 from datetime import datetime
 from typing import Dict, Any, Optional
@@ -33,9 +34,12 @@ class PuzzleService:
         self.puzzles_table_name = puzzles_table_name
         self.environment = environment
 
-        # AWSクライアントの初期化
-        self.s3_client = boto3.client('s3')
-        self.dynamodb = boto3.resource('dynamodb')
+        # AWSリージョンを環境変数から取得（CI/CD環境やLambda環境で必要）
+        aws_region = os.environ.get('AWS_REGION', 'ap-northeast-1')
+
+        # AWSクライアントの初期化（region_nameを明示的に指定）
+        self.s3_client = boto3.client('s3', region_name=aws_region)
+        self.dynamodb = boto3.resource('dynamodb', region_name=aws_region)
         self.puzzles_table = self.dynamodb.Table(puzzles_table_name)
 
     def create_puzzle(
