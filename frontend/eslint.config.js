@@ -19,5 +19,9 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      // AWS Amplifyなどの外部ライブラリのエラー型が不完全なため、anyを許容
+      '@typescript-eslint/no-explicit-any': 'off',
+    },
   },
 ])
