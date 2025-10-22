@@ -49,8 +49,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         userId: currentUser.userId,
         email: currentUser.signInDetails?.loginId || '',
       });
-    } catch (error) {
-      // 未認証の場合
+    } catch {
+      // 未認証の場合（errorは使用しないため省略）
       console.log('ℹ️ AuthContext: No user authenticated (expected for first visit)');
       setUser(null);
     } finally {
@@ -134,6 +134,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
+// カスタムフックのエクスポートはFast Refreshの対象外
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
