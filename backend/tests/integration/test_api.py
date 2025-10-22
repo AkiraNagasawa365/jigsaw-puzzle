@@ -186,3 +186,51 @@ class TestResponseFormat:
 
         assert response.status_code == 200
         assert "application/json" in response.headers["content-type"]
+
+
+class TestDeletePuzzle:
+    """パズル削除エンドポイントのテスト"""
+
+    def test_delete_puzzle_endpoint_exists(self, client):
+        """DELETE /puzzles/{puzzle_id} エンドポイントが存在すること"""
+        response = client.delete("/puzzles/test-id?user_id=anonymous")
+
+        # 404または500が返れば、エンドポイントは存在する（データがないだけ）
+        assert response.status_code in [404, 500]
+
+    def test_delete_puzzle_not_found(self, client):
+        """存在しないパズルの削除で404が返ること"""
+        response = client.delete("/puzzles/nonexistent-id?user_id=anonymous")
+
+        assert response.status_code == 404
+        data = response.json()
+        assert "detail" in data
+        assert "not found" in data["detail"].lower()
+
+    def test_delete_puzzle_success(self, client):
+        """パズルが正しく削除されること（作成→削除の流れ）"""
+        # 1. パズルを作成
+        create_payload = {
+            "userId": "test-user",
+            "pieceCount": 300,
+            "puzzleName": "Test Puzzle for Deletion",
+        }
+        create_response = client.post("/puzzles", json=create_payload)
+        assert create_response.status_code == 200
+        puzzle_data = create_response.json()
+        puzzle_id = puzzle_data["puzzleId"]
+
+        # 2. パズルが存在することを確認
+        get_response = client.get(f"/puzzles/{puzzle_id}?user_id=test-user")
+        assert get_response.status_code == 200
+
+        # 3. パズルを削除
+        delete_response = client.delete(f"/puzzles/{puzzle_id}?user_id=test-user")
+        assert delete_response.status_code == 200
+        delete_data = delete_response.json()
+        assert delete_data["puzzleId"] == puzzle_id
+        assert "deleted" in delete_data["message"].lower()
+
+        # 4. 削除後、パズルが存在しないことを確認
+        get_after_delete_response = client.get(f"/puzzles/{puzzle_id}?user_id=test-user")
+        assert get_after_delete_response.status_code == 404

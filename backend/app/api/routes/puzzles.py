@@ -130,3 +130,42 @@ def get_puzzle(puzzle_id: str, user_id: str = "anonymous"):
         raise HTTPException(status_code=404, detail="Puzzle not found")
 
     return puzzle
+
+
+@router.delete("/{puzzle_id}", responses={
+    404: {"model": ErrorResponse},
+    500: {"model": ErrorResponse}
+})
+def delete_puzzle(puzzle_id: str, user_id: str = "anonymous"):
+    """
+    Delete a puzzle and its associated image
+
+    - **puzzle_id**: Puzzle ID (path parameter)
+    - **user_id**: User ID (query parameter, default: anonymous)
+
+    Deletes both the DynamoDB record and the S3 image (if exists).
+    """
+    try:
+        result = puzzle_service.delete_puzzle(
+            user_id=user_id,
+            puzzle_id=puzzle_id
+        )
+        return result
+
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    except Exception as e:
+        logger.error(
+            "Error deleting puzzle",
+            extra={
+                "puzzle_id": puzzle_id,
+                "user_id": user_id,
+                "error": str(e)
+            }
+        )
+        # 本番環境ではエラー詳細を隠す
+        if settings.is_production:
+            raise HTTPException(status_code=500, detail="Internal server error")
+        else:
+            raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

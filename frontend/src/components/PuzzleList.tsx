@@ -42,6 +42,33 @@ const PuzzleList = ({ userId = 'anonymous', onPuzzleClick }: PuzzleListProps) =>
     }
   }
 
+  const handleDelete = async (puzzleId: string, e: React.MouseEvent) => {
+    // クリックイベントの伝播を停止（カード全体のクリックを防ぐ）
+    e.stopPropagation()
+
+    if (!confirm('このパズルを削除してもよろしいですか？')) {
+      return
+    }
+
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/puzzles/${puzzleId}?user_id=${userId}`,
+        {
+          method: 'DELETE',
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error('パズルの削除に失敗しました')
+      }
+
+      // 削除成功後、一覧を再取得
+      await fetchPuzzles()
+    } catch (err) {
+      alert(`削除エラー: ${err}`)
+    }
+  }
+
   if (loading) {
     return <div style={{ padding: '20px' }}>読み込み中...</div>
   }
@@ -131,6 +158,29 @@ const PuzzleList = ({ userId = 'anonymous', onPuzzleClick }: PuzzleListProps) =>
                 {new Date(puzzle.createdAt).toLocaleString('ja-JP')}
               </p>
             </div>
+
+            <button
+              onClick={(e) => handleDelete(puzzle.puzzleId, e)}
+              style={{
+                marginTop: '10px',
+                padding: '6px 12px',
+                backgroundColor: '#dc3545',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '12px',
+                width: '100%'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#c82333'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#dc3545'
+              }}
+            >
+              削除
+            </button>
           </div>
         ))}
       </div>

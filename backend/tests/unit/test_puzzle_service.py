@@ -645,3 +645,184 @@ class TestListPuzzles:
 
         assert 'KeyConditionExpression' in call_args
         assert call_args['ExpressionAttributeValues'][':uid'] == sample_user_id
+
+
+# ===================================================================
+# delete_puzzle() のテスト
+# ===================================================================
+
+class TestDeletePuzzle:
+    """
+    パズル削除機能のテスト
+
+    検証項目:
+    - 正常な削除（画像あり）
+    - 正常な削除（画像なし）
+    - パズルが見つからない場合
+    - S3削除エラーの処理
+    - DynamoDB削除エラーの処理
+    """
+
+    @pytest.mark.unit
+    def test_delete_puzzle_success_with_image(self, puzzle_service, sample_puzzle_id, sample_user_id):
+        """
+        正常系: 画像付きパズルが正しく削除される
+
+        検証:
+        - S3オブジェクトが削除される
+        - DynamoDBレコードが削除される
+        - 成功レスポンスが返される
+        """
+        s3_key = f"puzzles/{sample_puzzle_id}.jpg"
+        puzzle_service._mock_table.get_item.return_value = {
+            'Item': {
+                'userId': sample_user_id,
+                'puzzleId': sample_puzzle_id,
+                'puzzleName': 'Test Puzzle',
+                's3Key': s3_key
+            }
+        }
+        puzzle_service._mock_s3.delete_object.return_value = {}
+        puzzle_service._mock_table.delete_item.return_value = {}
+
+        result = puzzle_service.delete_puzzle(
+            user_id=sample_user_id,
+            puzzle_id=sample_puzzle_id
+        )
+
+        # S3削除が呼ばれた
+        puzzle_service._mock_s3.delete_object.assert_called_once_with(
+            Bucket=puzzle_service.s3_bucket_name,
+            Key=s3_key
+        )
+
+        # DynamoDB削除が呼ばれた
+        puzzle_service._mock_table.delete_item.assert_called_once_with(
+            Key={
+                'userId': sample_user_id,
+                'puzzleId': sample_puzzle_id
+            }
+        )
+
+        # レスポンス確認
+        assert result['puzzleId'] == sample_puzzle_id
+        assert 'message' in result
+        assert 'deleted' in result['message'].lower()
+
+    @pytest.mark.unit
+    def test_delete_puzzle_success_without_image(self, puzzle_service, sample_puzzle_id, sample_user_id):
+        """
+        正常系: 画像なしパズルが正しく削除される
+
+        検証:
+        - S3削除は呼ばれない
+        - DynamoDBレコードは削除される
+        """
+        puzzle_service._mock_table.get_item.return_value = {
+            'Item': {
+                'userId': sample_user_id,
+                'puzzleId': sample_puzzle_id,
+                'puzzleName': 'Test Puzzle',
+                'status': 'pending'
+                # s3Key なし
+            }
+        }
+        puzzle_service._mock_table.delete_item.return_value = {}
+
+        result = puzzle_service.delete_puzzle(
+            user_id=sample_user_id,
+            puzzle_id=sample_puzzle_id
+        )
+
+        # S3削除は呼ばれない
+        puzzle_service._mock_s3.delete_object.assert_not_called()
+
+        # DynamoDB削除は呼ばれる
+        puzzle_service._mock_table.delete_item.assert_called_once()
+
+        # レスポンス確認
+        assert result['puzzleId'] == sample_puzzle_id
+
+    @pytest.mark.unit
+    def test_delete_puzzle_not_found(self, puzzle_service, sample_puzzle_id, sample_user_id):
+        """
+        異常系: パズルが存在しない
+
+        検証: ValueError が発生する
+        """
+        puzzle_service._mock_table.get_item.return_value = {}
+
+        with pytest.raises(ValueError) as exc_info:
+            puzzle_service.delete_puzzle(
+                user_id=sample_user_id,
+                puzzle_id=sample_puzzle_id
+            )
+
+        assert "Puzzle not found" in str(exc_info.value)
+
+        # 削除処理は呼ばれない
+        puzzle_service._mock_s3.delete_object.assert_not_called()
+        puzzle_service._mock_table.delete_item.assert_not_called()
+
+    @pytest.mark.unit
+    def test_delete_puzzle_s3_error_continues(self, puzzle_service, sample_puzzle_id, sample_user_id):
+        """
+        異常系: S3削除エラー
+
+        検証:
+        - S3エラーが発生してもDynamoDB削除は続行される
+        - 最終的に削除成功として扱われる
+        """
+        s3_key = f"puzzles/{sample_puzzle_id}.jpg"
+        puzzle_service._mock_table.get_item.return_value = {
+            'Item': {
+                'userId': sample_user_id,
+                'puzzleId': sample_puzzle_id,
+                's3Key': s3_key
+            }
+        }
+
+        # S3エラーをシミュレート
+        puzzle_service._mock_s3.delete_object.side_effect = ClientError(
+            {'Error': {'Code': 'NoSuchKey', 'Message': 'Object not found'}},
+            'delete_object'
+        )
+        puzzle_service._mock_table.delete_item.return_value = {}
+
+        # エラーが発生しない（S3エラーは握りつぶされる）
+        result = puzzle_service.delete_puzzle(
+            user_id=sample_user_id,
+            puzzle_id=sample_puzzle_id
+        )
+
+        # DynamoDB削除は実行される
+        puzzle_service._mock_table.delete_item.assert_called_once()
+
+        # 成功レスポンス
+        assert result['puzzleId'] == sample_puzzle_id
+
+    @pytest.mark.unit
+    def test_delete_puzzle_dynamodb_error(self, puzzle_service, sample_puzzle_id, sample_user_id):
+        """
+        異常系: DynamoDB削除エラー
+
+        検証: DynamoDBエラー時にClientErrorが発生する
+        """
+        puzzle_service._mock_table.get_item.return_value = {
+            'Item': {
+                'userId': sample_user_id,
+                'puzzleId': sample_puzzle_id
+            }
+        }
+
+        # DynamoDB削除エラーをシミュレート
+        puzzle_service._mock_table.delete_item.side_effect = ClientError(
+            {'Error': {'Code': 'InternalServerError', 'Message': 'Delete error'}},
+            'delete_item'
+        )
+
+        with pytest.raises(ClientError):
+            puzzle_service.delete_puzzle(
+                user_id=sample_user_id,
+                puzzle_id=sample_puzzle_id
+            )
