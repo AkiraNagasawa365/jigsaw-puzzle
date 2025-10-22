@@ -28,6 +28,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## よく使うコマンド
 
+**重要**: 特に指定がない限り、すべてのコマンドはプロジェクトルート（`/Users/akira.nagasawa/Documents/elith/code/jigsaw-puzzle`）から実行してください。`cd` コマンドで示されている場合は、そのディレクトリに移動してからコマンドを実行します。
+
 ### バックエンド開発
 
 ```bash
@@ -84,6 +86,21 @@ cd backend
 uv run pytest                              # 全テストを実行
 uv run pytest tests/unit/ -v              # 単体テストのみ
 uv run pytest tests/unit/ -v --cov-report=term-missing:skip-covered  # カバレッジレポート付き
+
+# 特定のテストマーカーで実行
+uv run pytest -m unit                      # 単体テストのみ
+uv run pytest -m integration               # 統合テストのみ
+uv run pytest -m security                  # セキュリティテスト
+
+# 型チェック
+cd backend
+uv run mypy app/                           # 型チェック実行
+
+# フロントエンドのテスト
+cd frontend
+npm run test                               # Vitestを実行（ウォッチモード）
+npm run test:coverage                      # カバレッジレポート付き
+npm run test:ui                            # Vitest UIを起動
 ```
 
 ### デプロイ
@@ -101,6 +118,20 @@ terraform init
 terraform plan
 terraform apply
 ```
+
+### CI/CD
+
+GitHub Actionsワークフローが設定されています：
+
+- **CI** (`.github/workflows/ci.yml`): プッシュ時に自動テスト・Lint・型チェック実行
+- **Lambda Deploy** (`.github/workflows/deploy-lambda.yml`): Lambda関数の自動デプロイ
+- **Frontend Deploy** (`.github/workflows/deploy-frontend.yml`): フロントエンドの自動デプロイ
+
+**GitHub OIDC認証:**
+- AWSへの認証にGitHub OIDCを使用（IAM Userの長期クレデンシャル不要）
+- `terraform/modules/github-oidc/` にTerraformモジュールあり
+- セットアップ手順: `docs/20251022_github-oidc-setup.md` を参照
+- GitHub Secretsに認証情報を保存する必要なし（OIDC経由で一時クレデンシャル取得）
 
 ## 全体アーキテクチャ
 
@@ -194,7 +225,8 @@ terraform/
 │   ├── lambda/        # Lambda関数
 │   ├── api-gateway/   # API Gateway REST API
 │   ├── iam/           # IAMロールとポリシー
-│   └── frontend/      # CloudFront + S3静的ホスティング
+│   ├── frontend/      # CloudFront + S3静的ホスティング
+│   └── github-oidc/   # GitHub Actions OIDC認証
 └── environments/
     └── dev/           # 開発環境設定
 
@@ -247,14 +279,20 @@ lambda/
 
 ### テスト戦略
 
-テストは種類別に整理されています：
+**バックエンド:**
 - `backend/tests/unit/`: 単体テスト（外部依存なし）
 - `backend/tests/integration/`: 統合テスト（`moto` を使ったAWSモック付き）
 - `backend/tests/conftest.py`: 共有pytestフィクスチャ
-
-**カバレッジ要件:**
-- 最小カバレッジ: 80%（pytest.iniで強制）
+- テストマーカー: `@pytest.mark.unit`, `@pytest.mark.integration`, `@pytest.mark.security`, `@pytest.mark.validation`
+- カバレッジ要件: 最小80%（`pytest.ini`で強制）
 - カバレッジレポート: `backend/htmlcov/` にHTMLレポート
+
+**フロントエンド:**
+- `frontend/src/components/__tests__/`: コンポーネントテスト
+- `frontend/src/pages/__tests__/`: ページコンポーネントテスト
+- `frontend/src/test/setup.ts`: Vitestセットアップ（グローバル設定）
+- テストフレームワーク: Vitest + React Testing Library
+- カバレッジレポート: `frontend/coverage/` に生成
 
 ### DynamoDBスキーマ
 
@@ -316,6 +354,16 @@ CORSは `ALLOWED_ORIGINS` 環境変数で設定されます：
 - 仮想環境: `.venv/`
 - コマンド実行: `uv run <command>`
 - パッケージ追加: `uv add <package>`
+- 開発用依存関係: `uv add --dev <package>`
+
+### 型チェック設定
+
+`pyproject.toml` にmypy設定が含まれています：
+- Python 3.12対応
+- 厳格な型チェック有効（`disallow_untyped_defs`）
+- 外部ライブラリ（boto3、moto等）は型チェックを緩和
+- テストコード（`tests/`）は型チェックを緩和
+- FastAPIルート関数は`response_model`で型指定されるため緩和
 
 ### フロントエンド環境変数
 

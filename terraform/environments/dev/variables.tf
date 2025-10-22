@@ -25,3 +25,15 @@ variable "allowed_origins" {
     "https://dykwhpbm0bhdv.cloudfront.net"   # CloudFront distribution (deployed)
   ]
 }
+
+variable "github_org" {
+  description = "GitHub organization or username (e.g., 'your-username')"
+  type        = string
+  default     = "REPLACE_WITH_YOUR_GITHUB_USERNAME"  # あなたのGitHubユーザー名に置き換えてください
+}
+
+variable "github_repo" {
+  description = "GitHub repository name (e.g., 'jigsaw-puzzle')"
+  type        = string
+  default     = "jigsaw-puzzle"
+}

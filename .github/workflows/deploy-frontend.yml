@@ -1,0 +1,78 @@
+name: Deploy Frontend
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'frontend/**'
+  workflow_dispatch:  # 手動実行も可能
+
+# OIDCトークンの取得を許可
+permissions:
+  id-token: write   # OIDCトークン取得に必要
+  contents: read    # リポジトリの読み取り
+
+jobs:
+  deploy:
+    name: Deploy to S3 + CloudFront
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build production bundle
+        working-directory: frontend
+        run: npm run build
+        env:
+          VITE_API_BASE_URL: https://hbwku63803.execute-api.ap-northeast-1.amazonaws.com/dev
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ap-northeast-1
+
+      - name: Deploy to S3
+        run: |
+          chmod +x ./scripts/deploy-frontend.sh
+          ./scripts/deploy-frontend.sh
+
+      - name: Invalidate CloudFront cache
+        run: |
+          DISTRIBUTION_ID=$(aws cloudfront list-distributions \
+            --query "DistributionList.Items[?contains(Origins.Items[0].DomainName, 'jigsaw-puzzle-dev-frontend')].Id | [0]" \
+            --output text)
+
+          if [ -n "$DISTRIBUTION_ID" ] && [ "$DISTRIBUTION_ID" != "None" ]; then
+            echo "Invalidating CloudFront distribution: $DISTRIBUTION_ID"
+            aws cloudfront create-invalidation \
+              --distribution-id $DISTRIBUTION_ID \
+              --paths "/*"
+          else
+            echo "⚠️  CloudFront distribution not found, skipping cache invalidation"
+          fi
+
+      - name: Deployment summary
+        if: success()
+        run: |
+          echo "✅ Frontend deployment successful!"
+          echo "S3 Bucket: jigsaw-puzzle-dev-frontend"
+          echo "CloudFront: https://dykwhpbm0bhdv.cloudfront.net"
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "❌ Frontend deployment failed!"
+          echo "Check the logs above for details"

@@ -23,7 +23,7 @@ for dotenv_name in (".env.local", ".env"):
 class Settings:
     """Application settings loaded from environment variables"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         # AWS Configuration
         self.aws_region: str = os.environ.get('AWS_REGION', 'ap-northeast-1')
         self.aws_profile: str = os.environ.get('AWS_PROFILE', 'default')

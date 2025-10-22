@@ -8,7 +8,7 @@ import json
 import logging
 import os
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 
 class JSONFormatter(logging.Formatter):
@@ -51,7 +51,7 @@ class JSONFormatter(logging.Formatter):
         return json.dumps(log_data, ensure_ascii=False)
 
 
-def setup_logger(name: str = None) -> logging.Logger:
+def setup_logger(name: Optional[str] = None) -> logging.Logger:
     """
     構造化ログを出力するロガーをセットアップ
 

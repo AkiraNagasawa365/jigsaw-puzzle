@@ -47,8 +47,47 @@ python_functions = ["test_*"]
 dev = [
     "httpx>=0.28.1",
     "moto>=5.1.15",
+    "mypy>=1.8.0",
     "pytest>=8.4.2",
     "pytest-asyncio>=1.2.0",
     "pytest-cov>=7.0.0",
     "pytest-mock>=3.15.1",
 ]
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = false  # DynamoDB等の戻り値がAnyなのは許容
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_any_unimported = false
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = false  # 外部ライブラリの影響を受けやすいため無効化
+warn_no_return = true
+check_untyped_defs = true
+strict_equality = true
+
+# 外部ライブラリとテストコードの型チェックを緩和
+[[tool.mypy.overrides]]
+module = [
+    "boto3.*",
+    "botocore.*",
+    "moto.*",
+    "PIL.*",
+]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "app.services.image_processor"
+# 将来実装のため、型チェックをスキップ
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+# テストコードは型チェックを緩和
+disallow_untyped_defs = false
+
+[[tool.mypy.overrides]]
+module = "app.api.*"
+# FastAPIルート関数はresponse_modelで型指定されているため緩和
+disallow_untyped_defs = false

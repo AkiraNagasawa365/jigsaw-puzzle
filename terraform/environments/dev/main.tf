@@ -123,3 +123,17 @@ module "frontend" {
   environment  = var.environment
   common_tags  = local.common_tags
 }
+
+# ============================================
+# GitHub OIDC Module
+# ============================================
+# GitHub ActionsからAWSへの認証（Secrets不要）
+module "github_oidc" {
+  source = "../../modules/github-oidc"
+
+  project_name = var.project_name
+  environment  = var.environment
+  github_org   = var.github_org
+  github_repo  = var.github_repo
+  aws_region   = var.aws_region
+}

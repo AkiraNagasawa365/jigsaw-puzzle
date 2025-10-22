@@ -16,20 +16,20 @@ class PuzzleCreateRequest(BaseModel):
     puzzleName: str = Field(
         ...,
         description="パズルプロジェクト名",
-        example="富士山の風景",
         min_length=1,
-        max_length=100
+        max_length=100,
+        json_schema_extra={"example": "富士山の風景"}
     )
     pieceCount: Literal[100, 300, 500, 1000, 2000] = Field(
         ...,
         description="パズルのピース数（100, 300, 500, 1000, 2000のいずれか）",
-        example=300
+        json_schema_extra={"example": 300}
     )
     userId: str = Field(
         default="anonymous",
         description="ユーザーID",
-        example="user-123",
-        max_length=50
+        max_length=50,
+        json_schema_extra={"example": "user-123"}
     )
 
     @field_validator('puzzleName')
@@ -64,14 +64,14 @@ class UploadUrlRequest(BaseModel):
     fileName: str = Field(
         default="puzzle.jpg",
         description="画像ファイル名（jpg, jpeg, png のみ対応）",
-        example="my-puzzle.jpg",
-        max_length=255
+        max_length=255,
+        json_schema_extra={"example": "my-puzzle.jpg"}
     )
     userId: str = Field(
         default="anonymous",
         description="ユーザーID",
-        example="user-123",
-        max_length=50
+        max_length=50,
+        json_schema_extra={"example": "user-123"}
     )
 
     @field_validator('fileName')

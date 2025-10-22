@@ -1,0 +1,58 @@
+name: Deploy Lambda
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:  # 手動実行も可能
+
+# OIDCトークンの取得を許可
+permissions:
+  id-token: write   # OIDCトークン取得に必要
+  contents: read    # リポジトリの読み取り
+
+jobs:
+  deploy:
+    name: Deploy to AWS Lambda
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: |
+          uv sync
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ap-northeast-1
+
+      - name: Deploy Lambda function
+        run: |
+          chmod +x ./scripts/deploy-lambda.sh
+          ./scripts/deploy-lambda.sh
+
+      - name: Deployment summary
+        if: success()
+        run: |
+          echo "✅ Lambda deployment successful!"
+          echo "Function: jigsaw-puzzle-dev-puzzle-register"
+          echo "Region: ap-northeast-1"
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "❌ Lambda deployment failed!"
+          echo "Check the logs above for details"

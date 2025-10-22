@@ -113,3 +113,17 @@ output "backend_env_parameter" {
   description = "SSM parameter containing backend environment variables"
   value       = aws_ssm_parameter.backend_env.name
 }
+
+# ============================================
+# GitHub OIDC Outputs
+# ============================================
+
+output "github_actions_role_arn" {
+  description = "GitHub ActionsがAssumeするIAMロールのARN（ワークフローで使用）"
+  value       = module.github_oidc.github_actions_role_arn
+}
+
+output "github_oidc_provider_arn" {
+  description = "GitHub OIDC プロバイダーのARN"
+  value       = module.github_oidc.oidc_provider_arn
+}
