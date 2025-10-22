@@ -125,22 +125,60 @@ data "aws_iam_policy_document" "cloudfront_invalidate" {
   }
 }
 
-# SSM Parameter Store読み取り権限（デプロイ設定の取得用）
-resource "aws_iam_role_policy" "ssm_read" {
-  name   = "ssm-read"
-  role   = aws_iam_role.github_actions.id
-  policy = data.aws_iam_policy_document.ssm_read.json
+# PowerUserAccess（ほぼ全てのAWSサービスを管理可能、IAM管理は不可）
+# Terraformでインフラを管理するのに十分な権限
+resource "aws_iam_role_policy_attachment" "power_user" {
+  role       = aws_iam_role.github_actions.id
+  policy_arn = "arn:aws:iam::aws:policy/PowerUserAccess"
 }
 
-data "aws_iam_policy_document" "ssm_read" {
+# 追加で必要なIAM権限（Terraformが管理するリソースのみに限定）
+resource "aws_iam_role_policy" "iam_limited" {
+  name   = "iam-limited"
+  role   = aws_iam_role.github_actions.id
+  policy = data.aws_iam_policy_document.iam_limited.json
+}
+
+data "aws_iam_policy_document" "iam_limited" {
+  # プロジェクト固有のロールのみ管理可能
   statement {
     effect = "Allow"
     actions = [
-      "ssm:GetParameter",
-      "ssm:GetParameters"
+      "iam:CreateRole",
+      "iam:DeleteRole",
+      "iam:GetRole",
+      "iam:UpdateRole",
+      "iam:PutRolePolicy",
+      "iam:DeleteRolePolicy",
+      "iam:GetRolePolicy",
+      "iam:AttachRolePolicy",
+      "iam:DetachRolePolicy",
+      "iam:ListAttachedRolePolicies",
+      "iam:ListRolePolicies",
+      "iam:PassRole",
+      "iam:TagRole",
+      "iam:UntagRole",
+      "iam:ListInstanceProfilesForRole"
     ]
     resources = [
-      "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter/${var.project_name}/*"
+      "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${var.project_name}-*"
+    ]
+  }
+
+  # OIDC Provider管理（GitHub Actions認証用）
+  statement {
+    effect = "Allow"
+    actions = [
+      "iam:CreateOpenIDConnectProvider",
+      "iam:DeleteOpenIDConnectProvider",
+      "iam:GetOpenIDConnectProvider",
+      "iam:UpdateOpenIDConnectProviderThumbprint",
+      "iam:TagOpenIDConnectProvider",
+      "iam:UntagOpenIDConnectProvider",
+      "iam:ListOpenIDConnectProviders"
+    ]
+    resources = [
+      "arn:aws:iam::${data.aws_caller_identity.current.account_id}:oidc-provider/token.actions.githubusercontent.com"
     ]
   }
 }
