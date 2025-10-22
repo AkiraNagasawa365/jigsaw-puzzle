@@ -7,8 +7,10 @@
 
 import os
 import pytest
+import boto3
 from typing import Generator, Dict, Any
 from unittest.mock import MagicMock, patch
+from moto import mock_aws
 
 
 # ===== 環境変数のモック =====
@@ -35,6 +37,43 @@ def setup_test_environment() -> None:
     os.environ.setdefault("PUZZLES_TABLE_NAME", "test-puzzles")
     os.environ.setdefault("PIECES_TABLE_NAME", "test-pieces")
     os.environ.setdefault("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173")
+
+
+# ===== AWS Motoモック =====
+
+@pytest.fixture(scope="session", autouse=True)
+def aws_credentials_mock() -> Generator[None, None, None]:
+    """
+    全統合テストでAWSサービスをモック
+
+    motoを使ってDynamoDBとS3をモックし、実際のAWS認証情報なしでテスト可能にします。
+    scope="session": 全テストセッションで1回だけモックを開始
+    autouse=True: 明示的に指定しなくても自動的に実行
+    """
+    with mock_aws():
+        # DynamoDBテーブルを作成（motoモック環境）
+        dynamodb = boto3.resource('dynamodb', region_name='ap-northeast-1')
+        dynamodb.create_table(
+            TableName='test-puzzles',
+            KeySchema=[
+                {'AttributeName': 'userId', 'KeyType': 'HASH'},
+                {'AttributeName': 'puzzleId', 'KeyType': 'RANGE'}
+            ],
+            AttributeDefinitions=[
+                {'AttributeName': 'userId', 'AttributeType': 'S'},
+                {'AttributeName': 'puzzleId', 'AttributeType': 'S'}
+            ],
+            BillingMode='PAY_PER_REQUEST'
+        )
+
+        # S3バケットを作成（motoモック環境）
+        s3 = boto3.client('s3', region_name='ap-northeast-1')
+        s3.create_bucket(
+            Bucket='test-bucket',
+            CreateBucketConfiguration={'LocationConstraint': 'ap-northeast-1'}
+        )
+
+        yield  # テストセッション中はmotoがアクティブ
 
 
 # ===== テストデータフィクスチャ =====

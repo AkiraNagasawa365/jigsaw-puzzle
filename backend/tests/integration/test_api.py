@@ -7,46 +7,20 @@ Mangum実装後、全エンドポイントが正しく動作することを確�
 このテストは、エンドポイントのルーティング、リクエスト/レスポンス形式、
 CORS、バリデーションが機能していることを検証します。
 AWS呼び出しの詳細は単体テスト（test_puzzle_service.py）でカバーされています。
+
+AWSサービスのモックは conftest.py の aws_credentials_mock フィクスチャで
+セッションスコープで自動的に有効化されています。
 """
 
 import pytest
 from fastapi.testclient import TestClient
-from moto import mock_aws
-import boto3
 
 from app.api.main import app
 
 
 @pytest.fixture
-@mock_aws
 def client():
-    """
-    FastAPI TestClientのフィクスチャ（AWS motoモック付き）
-
-    motoを使ってDynamoDBとS3をモックし、実際のAWS認証情報なしでテスト可能にします。
-    """
-    # DynamoDBテーブルを作成（motoモック環境）
-    dynamodb = boto3.resource('dynamodb', region_name='ap-northeast-1')
-    dynamodb.create_table(
-        TableName='test-puzzles',
-        KeySchema=[
-            {'AttributeName': 'userId', 'KeyType': 'HASH'},
-            {'AttributeName': 'puzzleId', 'KeyType': 'RANGE'}
-        ],
-        AttributeDefinitions=[
-            {'AttributeName': 'userId', 'AttributeType': 'S'},
-            {'AttributeName': 'puzzleId', 'AttributeType': 'S'}
-        ],
-        BillingMode='PAY_PER_REQUEST'
-    )
-
-    # S3バケットを作成（motoモック環境）
-    s3 = boto3.client('s3', region_name='ap-northeast-1')
-    s3.create_bucket(
-        Bucket='test-bucket',
-        CreateBucketConfiguration={'LocationConstraint': 'ap-northeast-1'}
-    )
-
+    """FastAPI TestClientのフィクスチャ"""
     return TestClient(app)
 
 
