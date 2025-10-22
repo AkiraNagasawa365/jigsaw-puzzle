@@ -32,11 +32,9 @@ jobs:
         working-directory: frontend
         run: npm ci
 
-      - name: Build production bundle
+      - name: Build production bundle (will be rebuilt by deploy script with correct env vars)
         working-directory: frontend
-        run: npm run build
-        env:
-          VITE_API_BASE_URL: https://hbwku63803.execute-api.ap-northeast-1.amazonaws.com/dev
+        run: echo "Build will be performed by deploy-frontend.sh with the correct API URL"
 
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
@@ -44,25 +42,14 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ap-northeast-1
 
-      - name: Deploy to S3
+      - name: Deploy to S3 and invalidate CloudFront
         run: |
           chmod +x ./scripts/deploy-frontend.sh
           ./scripts/deploy-frontend.sh
-
-      - name: Invalidate CloudFront cache
-        run: |
-          DISTRIBUTION_ID=$(aws cloudfront list-distributions \
-            --query "DistributionList.Items[?contains(Origins.Items[0].DomainName, 'jigsaw-puzzle-dev-frontend')].Id | [0]" \
-            --output text)
-
-          if [ -n "$DISTRIBUTION_ID" ] && [ "$DISTRIBUTION_ID" != "None" ]; then
-            echo "Invalidating CloudFront distribution: $DISTRIBUTION_ID"
-            aws cloudfront create-invalidation \
-              --distribution-id $DISTRIBUTION_ID \
-              --paths "/*"
-          else
-            echo "⚠️  CloudFront distribution not found, skipping cache invalidation"
-          fi
+        env:
+          S3_BUCKET_NAME: jigsaw-puzzle-dev-frontend
+          CLOUDFRONT_DISTRIBUTION_ID: E2ATDO6B13LZFH
+          API_BASE_URL: https://hbwku63803.execute-api.ap-northeast-1.amazonaws.com/dev
 
       - name: Deployment summary
         if: success()

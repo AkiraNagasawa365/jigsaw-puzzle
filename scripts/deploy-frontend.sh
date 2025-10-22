@@ -16,52 +16,101 @@ echo "Environment: $ENVIRONMENT"
 echo "Project Root: $PROJECT_ROOT"
 echo ""
 
-# Check if terraform directory exists
-if [ ! -d "$TERRAFORM_DIR" ]; then
-    echo "Error: Terraform directory not found: $TERRAFORM_DIR"
+# ============================================
+# Step 1: Get S3 bucket name and CloudFront distribution ID
+# ============================================
+echo "Step 1: Getting AWS resource information..."
+
+# Try to get from environment variables first (for CI/CD)
+if [ -n "$S3_BUCKET_NAME" ]; then
+    S3_BUCKET="$S3_BUCKET_NAME"
+    echo "  Using S3 bucket from environment variable: $S3_BUCKET"
+else
+    # Try to get from Terraform output (for local development)
+    if [ -d "$TERRAFORM_DIR" ]; then
+        cd "$TERRAFORM_DIR"
+        S3_BUCKET=$(terraform output -raw frontend_s3_bucket_name 2>/dev/null)
+
+        if [ -z "$S3_BUCKET" ]; then
+            # Fallback: Query AWS using tags
+            echo "  Querying AWS for S3 bucket with tags..."
+            S3_BUCKET=$(aws s3api list-buckets --query "Buckets[?contains(Name, 'jigsaw-puzzle-${ENVIRONMENT}-frontend')].Name | [0]" --output text 2>/dev/null)
+        fi
+    else
+        # Fallback: Query AWS using tags
+        echo "  Terraform directory not found, querying AWS directly..."
+        S3_BUCKET=$(aws s3api list-buckets --query "Buckets[?contains(Name, 'jigsaw-puzzle-${ENVIRONMENT}-frontend')].Name | [0]" --output text 2>/dev/null)
+    fi
+fi
+
+if [ -z "$S3_BUCKET" ] || [ "$S3_BUCKET" = "None" ]; then
+    echo "Error: Could not determine S3 bucket name"
+    echo "       Please set S3_BUCKET_NAME environment variable or ensure Terraform is configured"
     exit 1
 fi
 
-# Get S3 bucket name and CloudFront distribution ID from Terraform
-echo "Step 1: Getting AWS resource information from Terraform..."
-cd "$TERRAFORM_DIR"
+# Try to get CloudFront distribution ID
+if [ -n "$CLOUDFRONT_DISTRIBUTION_ID" ]; then
+    CLOUDFRONT_ID="$CLOUDFRONT_DISTRIBUTION_ID"
+    echo "  Using CloudFront ID from environment variable: $CLOUDFRONT_ID"
+else
+    # Try to get from Terraform output (for local development)
+    if [ -d "$TERRAFORM_DIR" ]; then
+        cd "$TERRAFORM_DIR"
+        CLOUDFRONT_ID=$(terraform output -raw cloudfront_distribution_id 2>/dev/null)
 
-S3_BUCKET=$(terraform output -raw frontend_s3_bucket_name 2>/dev/null)
-CLOUDFRONT_ID=$(terraform output -raw cloudfront_distribution_id 2>/dev/null)
-
-if [ -z "$S3_BUCKET" ]; then
-    echo "Error: Could not get S3 bucket name from Terraform"
-    exit 1
+        if [ -z "$CLOUDFRONT_ID" ]; then
+            # Fallback: Query AWS using S3 origin
+            echo "  Querying AWS for CloudFront distribution..."
+            CLOUDFRONT_ID=$(aws cloudfront list-distributions --query "DistributionList.Items[?contains(Origins.Items[0].DomainName, '${S3_BUCKET}')].Id | [0]" --output text 2>/dev/null)
+        fi
+    else
+        # Fallback: Query AWS using S3 origin
+        echo "  Querying AWS for CloudFront distribution..."
+        CLOUDFRONT_ID=$(aws cloudfront list-distributions --query "DistributionList.Items[?contains(Origins.Items[0].DomainName, '${S3_BUCKET}')].Id | [0]" --output text 2>/dev/null)
+    fi
 fi
 
-if [ -z "$CLOUDFRONT_ID" ]; then
-    echo "Error: Could not get CloudFront distribution ID from Terraform"
-    exit 1
+if [ -z "$CLOUDFRONT_ID" ] || [ "$CLOUDFRONT_ID" = "None" ]; then
+    echo "Warning: Could not determine CloudFront distribution ID"
+    echo "         Deployment will continue, but cache invalidation will be skipped"
 fi
 
-echo "  S3 Bucket: $S3_BUCKET"
-echo "  CloudFront ID: $CLOUDFRONT_ID"
+echo "  ✓ S3 Bucket: $S3_BUCKET"
+if [ -n "$CLOUDFRONT_ID" ] && [ "$CLOUDFRONT_ID" != "None" ]; then
+    echo "  ✓ CloudFront ID: $CLOUDFRONT_ID"
+fi
 echo ""
 
-# Get API base URL from SSM via Terraform output
-echo "Step 1.5: Resolving API base URL from SSM..."
-cd "$TERRAFORM_DIR"
-API_PARAMETER_NAME=$(terraform output -raw frontend_api_base_url_parameter 2>/dev/null)
+# ============================================
+# Step 1.5: Get API base URL
+# ============================================
+echo "Step 1.5: Resolving API base URL..."
 
-if [ -z "$API_PARAMETER_NAME" ]; then
-    echo "Warning: Could not get SSM parameter name from Terraform"
-    echo "         Falling back to direct Terraform output (api_endpoint)"
-    API_ENDPOINT=$(terraform output -raw api_endpoint 2>/dev/null)
+# Try from environment variable first (for CI/CD)
+if [ -n "$API_BASE_URL" ]; then
+    API_ENDPOINT="$API_BASE_URL"
+    echo "  Using API endpoint from environment variable: $API_ENDPOINT"
 else
-    echo "  SSM Parameter: $API_PARAMETER_NAME"
+    # Try from SSM Parameter Store
+    API_PARAMETER_NAME="/jigsaw-puzzle/frontend/${ENVIRONMENT}/api_base_url"
+    echo "  Querying SSM Parameter: $API_PARAMETER_NAME"
     API_ENDPOINT=$(aws ssm get-parameter --name "$API_PARAMETER_NAME" --with-decryption --query 'Parameter.Value' --output text 2>/dev/null)
+
+    if [ -z "$API_ENDPOINT" ] || [ "$API_ENDPOINT" = "None" ]; then
+        # Try from Terraform output (for local development)
+        if [ -d "$TERRAFORM_DIR" ]; then
+            cd "$TERRAFORM_DIR"
+            API_ENDPOINT=$(terraform output -raw api_endpoint 2>/dev/null)
+        fi
+    fi
 fi
 
-if [ -z "$API_ENDPOINT" ]; then
-    echo "Warning: Could not resolve API endpoint"
-    echo "         Using default from .env.production"
+if [ -z "$API_ENDPOINT" ] || [ "$API_ENDPOINT" = "None" ]; then
+    echo "  Warning: Could not resolve API endpoint"
+    echo "           Using default from .env.production"
 else
-    echo "  API Endpoint: $API_ENDPOINT"
+    echo "  ✓ API Endpoint: $API_ENDPOINT"
 fi
 echo ""
 
@@ -110,28 +159,53 @@ echo ""
 
 # Invalidate CloudFront cache
 echo "Step 4: Invalidating CloudFront cache..."
-INVALIDATION_ID=$(aws cloudfront create-invalidation \
-    --distribution-id "$CLOUDFRONT_ID" \
-    --paths "/*" \
-    --query 'Invalidation.Id' \
-    --output text)
+if [ -n "$CLOUDFRONT_ID" ] && [ "$CLOUDFRONT_ID" != "None" ]; then
+    INVALIDATION_ID=$(aws cloudfront create-invalidation \
+        --distribution-id "$CLOUDFRONT_ID" \
+        --paths "/*" \
+        --query 'Invalidation.Id' \
+        --output text 2>/dev/null)
 
-echo "  Invalidation ID: $INVALIDATION_ID"
-echo "  (Cache invalidation is running in the background)"
+    if [ -n "$INVALIDATION_ID" ] && [ "$INVALIDATION_ID" != "None" ]; then
+        echo "  ✓ Invalidation ID: $INVALIDATION_ID"
+        echo "  (Cache invalidation is running in the background)"
+    else
+        echo "  ⚠️  Failed to create cache invalidation"
+    fi
+else
+    echo "  ⚠️  Skipping cache invalidation (CloudFront ID not found)"
+fi
 echo ""
 
 # Get CloudFront domain
-CLOUDFRONT_DOMAIN=$(cd "$TERRAFORM_DIR" && terraform output -raw cloudfront_domain_name 2>/dev/null)
+CLOUDFRONT_DOMAIN=""
+if [ -d "$TERRAFORM_DIR" ]; then
+    cd "$TERRAFORM_DIR"
+    CLOUDFRONT_DOMAIN=$(terraform output -raw cloudfront_domain_name 2>/dev/null)
+fi
+
+if [ -z "$CLOUDFRONT_DOMAIN" ] || [ "$CLOUDFRONT_DOMAIN" = "None" ]; then
+    # Try to get from AWS CLI
+    if [ -n "$CLOUDFRONT_ID" ] && [ "$CLOUDFRONT_ID" != "None" ]; then
+        CLOUDFRONT_DOMAIN=$(aws cloudfront get-distribution --id "$CLOUDFRONT_ID" --query 'Distribution.DomainName' --output text 2>/dev/null)
+    fi
+fi
 
 echo "==================================="
 echo "Deployment Complete! ✅"
 echo "==================================="
 echo ""
-echo "Your frontend is now available at:"
-echo "  https://$CLOUDFRONT_DOMAIN"
+echo "S3 Bucket: $S3_BUCKET"
+if [ -n "$CLOUDFRONT_DOMAIN" ] && [ "$CLOUDFRONT_DOMAIN" != "None" ]; then
+    echo "Frontend URL: https://$CLOUDFRONT_DOMAIN"
+    echo ""
+    echo "Note: CloudFront cache invalidation may take a few minutes."
+else
+    echo "CloudFront: Not configured or not found"
+fi
 echo ""
-echo "Note: CloudFront cache invalidation may take a few minutes."
-echo ""
-echo "Check invalidation status:"
-echo "  aws cloudfront get-invalidation --distribution-id $CLOUDFRONT_ID --id $INVALIDATION_ID"
-echo ""
+if [ -n "$INVALIDATION_ID" ] && [ "$INVALIDATION_ID" != "None" ]; then
+    echo "Check invalidation status:"
+    echo "  aws cloudfront get-invalidation --distribution-id $CLOUDFRONT_ID --id $INVALIDATION_ID"
+    echo ""
+fi
