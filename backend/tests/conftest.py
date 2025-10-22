@@ -41,13 +41,13 @@ def setup_test_environment() -> None:
 
 # ===== AWS Motoモック =====
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(scope="function", autouse=True)
 def aws_credentials_mock() -> Generator[None, None, None]:
     """
     全統合テストでAWSサービスをモック
 
     motoを使ってDynamoDBとS3をモックし、実際のAWS認証情報なしでテスト可能にします。
-    scope="session": 全テストセッションで1回だけモックを開始
+    scope="function": 各テスト関数ごとにモックを開始
     autouse=True: 明示的に指定しなくても自動的に実行
     """
     with mock_aws():
@@ -73,7 +73,17 @@ def aws_credentials_mock() -> Generator[None, None, None]:
             CreateBucketConfiguration={'LocationConstraint': 'ap-northeast-1'}
         )
 
-        yield  # テストセッション中はmotoがアクティブ
+        # puzzle_serviceを再初期化（motoがアクティブな状態で）
+        from app.services.puzzle_service import PuzzleService
+        from app.api.routes import puzzles
+
+        puzzles.puzzle_service = PuzzleService(
+            s3_bucket_name='test-bucket',
+            puzzles_table_name='test-puzzles',
+            environment='test'
+        )
+
+        yield  # テスト実行中はmotoがアクティブ
 
 
 # ===== テストデータフィクスチャ =====
