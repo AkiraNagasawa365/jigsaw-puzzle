@@ -109,6 +109,11 @@ output "frontend_api_base_url_parameter" {
   value       = aws_ssm_parameter.frontend_api_base_url.name
 }
 
+output "frontend_resources_parameter" {
+  description = "SSM parameter storing all frontend deployment resources (JSON)"
+  value       = aws_ssm_parameter.frontend_resources.name
+}
+
 output "backend_env_parameter" {
   description = "SSM parameter containing backend environment variables"
   value       = aws_ssm_parameter.backend_env.name

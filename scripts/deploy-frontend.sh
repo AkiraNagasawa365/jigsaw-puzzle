@@ -7,7 +7,7 @@ set -e  # Exit on error
 
 ENVIRONMENT=${1:-dev}
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-TERRAFORM_DIR="$PROJECT_ROOT/terraform/environments/$ENVIRONMENT"
+PROJECT_NAME="jigsaw-puzzle"
 
 echo "==================================="
 echo "Frontend Deployment Script"
@@ -16,56 +16,59 @@ echo "Environment: $ENVIRONMENT"
 echo "Project Root: $PROJECT_ROOT"
 echo ""
 
-# Check if terraform directory exists
-if [ ! -d "$TERRAFORM_DIR" ]; then
-    echo "Error: Terraform directory not found: $TERRAFORM_DIR"
+# ============================================
+# Step 1: Get all resource information from SSM Parameter Store
+# ============================================
+echo "Step 1: Getting AWS resource information from SSM Parameter Store..."
+
+SSM_PARAM_NAME="/${PROJECT_NAME}/frontend/${ENVIRONMENT}/resources"
+echo "  Reading: $SSM_PARAM_NAME"
+
+# Get the JSON from SSM
+RESOURCES_JSON=$(aws ssm get-parameter \
+    --name "$SSM_PARAM_NAME" \
+    --with-decryption \
+    --query 'Parameter.Value' \
+    --output text 2>/dev/null)
+
+if [ -z "$RESOURCES_JSON" ]; then
+    echo "Error: Could not retrieve resource information from SSM"
+    echo "       Expected parameter: $SSM_PARAM_NAME"
+    echo ""
+    echo "Hint: Run 'cd terraform/environments/$ENVIRONMENT && terraform apply' to create/update the SSM parameter"
     exit 1
 fi
 
-# Get S3 bucket name and CloudFront distribution ID from Terraform
-echo "Step 1: Getting AWS resource information from Terraform..."
-cd "$TERRAFORM_DIR"
+# Parse JSON to get individual values
+S3_BUCKET=$(echo "$RESOURCES_JSON" | jq -r '.s3_bucket_name')
+CLOUDFRONT_ID=$(echo "$RESOURCES_JSON" | jq -r '.cloudfront_distribution_id')
+CLOUDFRONT_DOMAIN=$(echo "$RESOURCES_JSON" | jq -r '.cloudfront_domain_name')
+API_ENDPOINT=$(echo "$RESOURCES_JSON" | jq -r '.api_base_url')
 
-S3_BUCKET=$(terraform output -raw frontend_s3_bucket_name 2>/dev/null)
-CLOUDFRONT_ID=$(terraform output -raw cloudfront_distribution_id 2>/dev/null)
-
-if [ -z "$S3_BUCKET" ]; then
-    echo "Error: Could not get S3 bucket name from Terraform"
+# Validate required values
+if [ -z "$S3_BUCKET" ] || [ "$S3_BUCKET" = "null" ]; then
+    echo "Error: S3 bucket name not found in SSM parameter"
     exit 1
 fi
 
-if [ -z "$CLOUDFRONT_ID" ]; then
-    echo "Error: Could not get CloudFront distribution ID from Terraform"
-    exit 1
+if [ -z "$CLOUDFRONT_ID" ] || [ "$CLOUDFRONT_ID" = "null" ]; then
+    echo "Warning: CloudFront distribution ID not found"
+    echo "         Deployment will continue, but cache invalidation will be skipped"
 fi
 
-echo "  S3 Bucket: $S3_BUCKET"
-echo "  CloudFront ID: $CLOUDFRONT_ID"
+echo "  ✓ S3 Bucket: $S3_BUCKET"
+if [ -n "$CLOUDFRONT_ID" ] && [ "$CLOUDFRONT_ID" != "null" ]; then
+    echo "  ✓ CloudFront ID: $CLOUDFRONT_ID"
+    echo "  ✓ CloudFront Domain: $CLOUDFRONT_DOMAIN"
+fi
+if [ -n "$API_ENDPOINT" ] && [ "$API_ENDPOINT" != "null" ]; then
+    echo "  ✓ API Endpoint: $API_ENDPOINT"
+fi
 echo ""
 
-# Get API base URL from SSM via Terraform output
-echo "Step 1.5: Resolving API base URL from SSM..."
-cd "$TERRAFORM_DIR"
-API_PARAMETER_NAME=$(terraform output -raw frontend_api_base_url_parameter 2>/dev/null)
-
-if [ -z "$API_PARAMETER_NAME" ]; then
-    echo "Warning: Could not get SSM parameter name from Terraform"
-    echo "         Falling back to direct Terraform output (api_endpoint)"
-    API_ENDPOINT=$(terraform output -raw api_endpoint 2>/dev/null)
-else
-    echo "  SSM Parameter: $API_PARAMETER_NAME"
-    API_ENDPOINT=$(aws ssm get-parameter --name "$API_PARAMETER_NAME" --with-decryption --query 'Parameter.Value' --output text 2>/dev/null)
-fi
-
-if [ -z "$API_ENDPOINT" ]; then
-    echo "Warning: Could not resolve API endpoint"
-    echo "         Using default from .env.production"
-else
-    echo "  API Endpoint: $API_ENDPOINT"
-fi
-echo ""
-
-# Build frontend
+# ============================================
+# Step 2: Build frontend for production
+# ============================================
 echo "Step 2: Building frontend for production..."
 cd "$PROJECT_ROOT/frontend"
 
@@ -75,9 +78,8 @@ if [ ! -d "node_modules" ]; then
     npm install
 fi
 
-# Build with API endpoint from Terraform (if available)
-# Viteは環境変数をビルド時に埋め込むため、ここで指定する必要がある
-if [ -n "$API_ENDPOINT" ]; then
+# Build with API endpoint from SSM
+if [ -n "$API_ENDPOINT" ] && [ "$API_ENDPOINT" != "null" ]; then
     echo "  Building with API endpoint: $API_ENDPOINT"
     VITE_API_BASE_URL=$API_ENDPOINT npm run build
 else
@@ -90,10 +92,12 @@ if [ ! -d "dist" ]; then
     exit 1
 fi
 
-echo "  Build complete ✓"
+echo "  ✓ Build complete"
 echo ""
 
-# Upload to S3
+# ============================================
+# Step 3: Upload to S3
+# ============================================
 echo "Step 3: Uploading files to S3..."
 aws s3 sync dist/ "s3://$S3_BUCKET/" \
     --delete \
@@ -105,33 +109,47 @@ aws s3 cp dist/index.html "s3://$S3_BUCKET/index.html" \
     --cache-control "public, max-age=0, must-revalidate" \
     --content-type "text/html"
 
-echo "  Upload complete ✓"
+echo "  ✓ Upload complete"
 echo ""
 
-# Invalidate CloudFront cache
+# ============================================
+# Step 4: Invalidate CloudFront cache
+# ============================================
 echo "Step 4: Invalidating CloudFront cache..."
-INVALIDATION_ID=$(aws cloudfront create-invalidation \
-    --distribution-id "$CLOUDFRONT_ID" \
-    --paths "/*" \
-    --query 'Invalidation.Id' \
-    --output text)
+if [ -n "$CLOUDFRONT_ID" ] && [ "$CLOUDFRONT_ID" != "null" ]; then
+    INVALIDATION_ID=$(aws cloudfront create-invalidation \
+        --distribution-id "$CLOUDFRONT_ID" \
+        --paths "/*" \
+        --query 'Invalidation.Id' \
+        --output text 2>/dev/null)
 
-echo "  Invalidation ID: $INVALIDATION_ID"
-echo "  (Cache invalidation is running in the background)"
+    if [ -n "$INVALIDATION_ID" ] && [ "$INVALIDATION_ID" != "null" ]; then
+        echo "  ✓ Invalidation ID: $INVALIDATION_ID"
+        echo "  (Cache invalidation is running in the background)"
+    else
+        echo "  ⚠️  Failed to create cache invalidation"
+    fi
+else
+    echo "  ⚠️  Skipping cache invalidation (CloudFront ID not found)"
+fi
 echo ""
 
-# Get CloudFront domain
-CLOUDFRONT_DOMAIN=$(cd "$TERRAFORM_DIR" && terraform output -raw cloudfront_domain_name 2>/dev/null)
-
+# ============================================
+# Summary
+# ============================================
 echo "==================================="
 echo "Deployment Complete! ✅"
 echo "==================================="
 echo ""
-echo "Your frontend is now available at:"
-echo "  https://$CLOUDFRONT_DOMAIN"
+echo "S3 Bucket: $S3_BUCKET"
+if [ -n "$CLOUDFRONT_DOMAIN" ] && [ "$CLOUDFRONT_DOMAIN" != "null" ]; then
+    echo "Frontend URL: https://$CLOUDFRONT_DOMAIN"
+    echo ""
+    echo "Note: CloudFront cache invalidation may take a few minutes."
+fi
 echo ""
-echo "Note: CloudFront cache invalidation may take a few minutes."
-echo ""
-echo "Check invalidation status:"
-echo "  aws cloudfront get-invalidation --distribution-id $CLOUDFRONT_ID --id $INVALIDATION_ID"
-echo ""
+if [ -n "$INVALIDATION_ID" ] && [ "$INVALIDATION_ID" != "null" ]; then
+    echo "Check invalidation status:"
+    echo "  aws cloudfront get-invalidation --distribution-id $CLOUDFRONT_ID --id $INVALIDATION_ID"
+    echo ""
+fi
