@@ -26,18 +26,22 @@ jobs:
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
       - name: Install dependencies
+        working-directory: backend
         run: |
           uv sync
 
       - name: Run mypy (Type Check)
+        working-directory: backend
         run: |
           uv run mypy app
 
       - name: Run pytest (Unit Tests)
+        working-directory: backend
         run: |
           uv run pytest tests/unit/ -v --cov=app --cov-report=xml
 
       - name: Run pytest (Integration Tests)
+        working-directory: backend
         run: |
           uv run pytest tests/integration/ -v
 
@@ -45,7 +49,7 @@ jobs:
         uses: codecov/codecov-action@v4
         if: success()
         with:
-          file: ./coverage.xml
+          file: ./backend/coverage.xml
           flags: backend
           name: backend-coverage
 
