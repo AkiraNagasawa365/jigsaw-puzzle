@@ -285,3 +285,84 @@ class PuzzleService:
                 }
             )
             return []
+
+    def delete_puzzle(self, user_id: str, puzzle_id: str) -> Dict[str, Any]:
+        """
+        Delete a puzzle and its associated S3 image
+
+        Args:
+            user_id: User ID
+            puzzle_id: Puzzle ID
+
+        Returns:
+            Dictionary containing deletion confirmation
+
+        Raises:
+            ValueError: If puzzle not found
+            ClientError: If AWS operation fails
+        """
+        # パズルの存在を確認
+        puzzle = self.get_puzzle(user_id, puzzle_id)
+        if not puzzle:
+            raise ValueError(f"Puzzle not found: {puzzle_id}")
+
+        # S3から画像を削除（存在する場合）
+        s3_key = puzzle.get('s3Key')
+        if s3_key:
+            try:
+                self.s3_client.delete_object(
+                    Bucket=self.s3_bucket_name,
+                    Key=s3_key
+                )
+                logger.info(
+                    "Deleted S3 object successfully",
+                    extra={
+                        "puzzle_id": puzzle_id,
+                        "user_id": user_id,
+                        "s3_key": s3_key
+                    }
+                )
+            except ClientError as e:
+                logger.error(
+                    "Failed to delete S3 object",
+                    extra={
+                        "puzzle_id": puzzle_id,
+                        "user_id": user_id,
+                        "s3_key": s3_key,
+                        "error": str(e)
+                    }
+                )
+                # S3削除失敗はエラーとせず継続（DynamoDBレコードは削除）
+
+        # DynamoDBからパズルレコードを削除
+        try:
+            self.puzzles_table.delete_item(
+                Key={
+                    'userId': user_id,
+                    'puzzleId': puzzle_id
+                }
+            )
+        except ClientError as e:
+            logger.error(
+                "Failed to delete puzzle from DynamoDB",
+                extra={
+                    "puzzle_id": puzzle_id,
+                    "user_id": user_id,
+                    "error": str(e)
+                }
+            )
+            raise
+
+        logger.info(
+            "Deleted puzzle successfully",
+            extra={
+                "puzzle_id": puzzle_id,
+                "user_id": user_id,
+                "had_image": bool(s3_key)
+            }
+        )
+
+        return {
+            'puzzleId': puzzle_id,
+            'message': 'Puzzle deleted successfully'
+        }
