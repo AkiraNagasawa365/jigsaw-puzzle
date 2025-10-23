@@ -78,7 +78,8 @@ data "aws_iam_policy_document" "lambda_deploy" {
       "lambda:GetFunctionConfiguration"
     ]
     resources = [
-      "arn:aws:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:${var.project_name}-${var.environment}-*"
+      # 全環境のLambda関数にアクセス可能（dev, prod両方）
+      "arn:aws:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:${var.project_name}-*"
     ]
   }
 }
@@ -100,8 +101,9 @@ data "aws_iam_policy_document" "s3_deploy" {
       "s3:ListBucket"
     ]
     resources = [
-      "arn:aws:s3:::${var.project_name}-${var.environment}-frontend",
-      "arn:aws:s3:::${var.project_name}-${var.environment}-frontend/*"
+      # 全環境のフロントエンドS3バケットにアクセス可能（dev, prod両方）
+      "arn:aws:s3:::${var.project_name}-*-frontend",
+      "arn:aws:s3:::${var.project_name}-*-frontend/*"
     ]
   }
 }
@@ -130,6 +132,28 @@ data "aws_iam_policy_document" "cloudfront_invalidate" {
 resource "aws_iam_role_policy_attachment" "power_user" {
   role       = aws_iam_role.github_actions.id
   policy_arn = "arn:aws:iam::aws:policy/PowerUserAccess"
+}
+
+# SSM Parameter Store読み取り権限（デプロイスクリプト用）
+resource "aws_iam_role_policy" "ssm_parameters" {
+  name   = "ssm-parameters"
+  role   = aws_iam_role.github_actions.id
+  policy = data.aws_iam_policy_document.ssm_parameters.json
+}
+
+data "aws_iam_policy_document" "ssm_parameters" {
+  statement {
+    effect = "Allow"
+    actions = [
+      "ssm:GetParameter",
+      "ssm:GetParameters",
+      "ssm:PutParameter"
+    ]
+    resources = [
+      # プロジェクトのSSM Parameterにアクセス可能（全環境）
+      "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter/${var.project_name}/*"
+    ]
+  }
 }
 
 # 追加で必要なIAM権限（Terraformが管理するリソースのみに限定）

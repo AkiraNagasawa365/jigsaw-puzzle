@@ -122,13 +122,5 @@ output "backend_env_parameter" {
 # ============================================
 # GitHub OIDC Outputs
 # ============================================
-
-output "github_actions_role_arn" {
-  description = "GitHub ActionsがAssumeするIAMロールのARN（ワークフローで使用）"
-  value       = module.github_oidc.github_actions_role_arn
-}
-
-output "github_oidc_provider_arn" {
-  description = "GitHub OIDC プロバイダーのARN"
-  value       = module.github_oidc.oidc_provider_arn
-}
+# 注意: GitHub OIDC Providerとロールはdev環境で作成済みのため、
+# prod環境では出力しない（dev環境のロールを参照）
