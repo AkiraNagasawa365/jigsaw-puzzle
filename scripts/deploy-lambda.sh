@@ -1,17 +1,21 @@
 #!/bin/bash
 
 # Lambda deployment script for puzzle-register function
-# Usage: ./scripts/deploy-lambda.sh
+# Usage: ./scripts/deploy-lambda.sh [environment]
+#   environment: dev (default) or prod
 
 set -e  # Exit on error
 
-FUNCTION_NAME="jigsaw-puzzle-dev-puzzle-register"
+ENVIRONMENT=${1:-dev}
+PROJECT_NAME="jigsaw-puzzle"
+FUNCTION_NAME="${PROJECT_NAME}-${ENVIRONMENT}-puzzle-register"
 LAMBDA_DIR="lambda/puzzle-register"
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 echo "==================================="
 echo "Lambda Deployment Script"
 echo "==================================="
+echo "Environment: $ENVIRONMENT"
 echo "Function: $FUNCTION_NAME"
 echo "Project Root: $PROJECT_ROOT"
 echo ""
@@ -101,6 +105,6 @@ echo "Test the function:"
 echo "  aws lambda invoke --function-name $FUNCTION_NAME output.json"
 echo ""
 echo "Or via API Gateway (after API Gateway setup):"
-echo "  curl -X POST https://YOUR_API_ID.execute-api.ap-northeast-1.amazonaws.com/dev/puzzles \\"
+echo "  curl -X POST https://YOUR_API_ID.execute-api.ap-northeast-1.amazonaws.com/$ENVIRONMENT/puzzles \\"
 echo "    -H 'Content-Type: application/json' \\"
-echo "    -d '{\"pieceCount\": 300}'"
+echo "    -d '{\"userId\": \"test-user\", \"puzzleName\": \"Test Puzzle\", \"pieceCount\": 300}'"

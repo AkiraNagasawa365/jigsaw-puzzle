@@ -6,6 +6,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ジグソーパズル支援システム - ユーザーがジグソーパズルを登録し、ピース画像をアップロードして、ピースの位置を特定できるWebアプリケーション。Reactフロントエンド、FastAPIバックエンド(ローカル開発)、AWS Lambda(本番環境)、Terraformでインフラ構築。
 
+## 環境構成
+
+このプロジェクトは複数のAWS環境をサポートしています：
+
+- **dev環境**: 開発環境（`develop` ブランチ）
+- **prod環境**: 本番環境（`main` ブランチ）
+
+各環境は完全に分離されており、独自のAWSリソース（Lambda、DynamoDB、S3、CloudFront等）を持ちます。
+
 ## 技術スタック
 
 **バックエンド:**
@@ -107,13 +116,20 @@ npm run test:ui                            # Vitest UIを起動
 
 ```bash
 # Lambda関数をデプロイ
-./scripts/deploy-lambda.sh
+./scripts/deploy-lambda.sh [environment]  # dev or prod (デフォルト: dev)
 
 # フロントエンドをデプロイ(S3 + CloudFront)
-./scripts/deploy-frontend.sh
+./scripts/deploy-frontend.sh [environment]  # dev or prod (デフォルト: dev)
 
 # Terraform(インフラ)
+# dev環境
 cd terraform/environments/dev
+terraform init
+terraform plan
+terraform apply
+
+# prod環境
+cd terraform/environments/prod
 terraform init
 terraform plan
 terraform apply
@@ -121,17 +137,60 @@ terraform apply
 
 ### CI/CD
 
-GitHub Actionsワークフローが設定されています:
+GitHub Actionsワークフローが設定されており、**ブランチベースの自動デプロイ**を実現しています:
 
-- **CI** (`.github/workflows/ci.yml`): プッシュ時に自動テスト・Lint・型チェック実行
-- **Lambda Deploy** (`.github/workflows/deploy-lambda.yml`): Lambda関数の自動デプロイ
-- **Frontend Deploy** (`.github/workflows/deploy-frontend.yml`): フロントエンドの自動デプロイ
+#### 自動デプロイのトリガー
+
+| ブランチ | 環境 | デプロイ内容 |
+|---------|------|------------|
+| `main` | **prod** | 本番環境への自動デプロイ |
+| `develop` | **dev** | 開発環境への自動デプロイ |
+
+#### ワークフロー一覧
+
+- **CI** (`.github/workflows/ci.yml`)
+  - プッシュ時に自動テスト・Lint・型チェック実行
+
+- **Lambda Deploy** (`.github/workflows/deploy-lambda.yml`)
+  - `main` ブランチ → prod環境の Lambda関数をデプロイ
+  - `develop` ブランチ → dev環境の Lambda関数をデプロイ
+  - トリガー: `backend/app/`, `lambda/`, `scripts/deploy-lambda.sh` の変更時
+  - 手動実行も可能（環境を選択）
+
+- **Frontend Deploy** (`.github/workflows/deploy-frontend.yml`)
+  - `main` ブランチ → prod環境のフロントエンドをS3+CloudFrontへデプロイ
+  - `develop` ブランチ → dev環境のフロントエンドをS3+CloudFrontへデプロイ
+  - トリガー: `frontend/`, `scripts/deploy-frontend.sh` の変更時
+  - 手動実行も可能（環境を選択）
+
+- **Terraform Plan** (`.github/workflows/terraform-plan.yml`)
+  - PRとdevelopブランチで `terraform/` の変更時に自動でプラン実行
+  - PRにコメント投稿
+
+- **Terraform Apply** (`.github/workflows/terraform-apply.yml`)
+  - `main` ブランチ → prod環境のインフラを自動更新
+  - `develop` ブランチ → dev環境のインフラを自動更新
+  - トリガー: `terraform/` の変更時
+  - 手動実行も可能（環境を選択）
+  - **重要**: prod環境へのapplyには、GitHub Environmentsの保護ルール（承認者設定）を推奨
 
 **GitHub OIDC認証:**
 - AWSへの認証にGitHub OIDCを使用(IAM Userの長期クレデンシャル不要)
 - `terraform/modules/github-oidc/` にTerraformモジュールあり
 - セットアップ手順: `docs/20251022_github-oidc-setup.md` を参照
-- GitHub Secretsに認証情報を保存する必要なし(OIDC経由で一時クレデンシャル取得)
+- GitHub SecretsにはOIDCロールARN(`AWS_ROLE_ARN`)のみ設定、OIDC経由で一時クレデンシャル取得
+- GitHub ActionsからSSM Parameter Storeを読み取り可能(CloudFront URLなどの動的な値を取得)
+
+#### デプロイフロー例
+
+```
+開発フロー:
+1. feature/* ブランチで開発
+2. develop ブランチにPR作成 → CI実行
+3. develop にマージ → dev環境に自動デプロイ
+4. main にPR作成 → Terraform Plan実行（必要に応じて）
+5. main にマージ → prod環境に自動デプロイ
+```
 
 ## 全体アーキテクチャ
 
@@ -228,7 +287,8 @@ terraform/
 │   ├── frontend/      # CloudFront + S3静的ホスティング
 │   └── github-oidc/   # GitHub Actions OIDC認証
 └── environments/
-    └── dev/           # 開発環境設定
+    ├── dev/           # 開発環境設定
+    └── prod/          # 本番環境設定
 
 lambda/
 └── puzzle-register/
@@ -243,6 +303,7 @@ lambda/
 - `generate_upload_url()`: S3のPre-signed URLを生成
 - `get_puzzle()`: IDでパズルを取得
 - `list_puzzles()`: ユーザーのパズル一覧を取得
+- `delete_puzzle()`: DynamoDBレコードとS3画像を削除
 
 このサービスはFastAPIルートとLambdaハンドラーの両方でインスタンス化され、一貫性を保証します。
 
@@ -312,12 +373,20 @@ lambda/
 ### Terraformモジュールパターン
 
 各AWSリソースタイプには独自のモジュールがあります:
-- モジュールは環境(dev/staging/prod)間で再利用可能
+- モジュールは環境(dev/prod)間で再利用可能
 - 環境固有の値は変数として渡される
 - モジュールからの出力は他のモジュールから参照可能
 - ステートは環境ごとに分離
 
-例: `terraform/modules/lambda/` はLambda関数、IAMロール、CloudWatch Logsを定義します。開発環境(`terraform/environments/dev/`)はdev固有の設定でインスタンス化します。
+例: `terraform/modules/lambda/` はLambda関数、IAMロール、CloudWatch Logsを定義します。
+- 開発環境(`terraform/environments/dev/`)はdev固有の設定でインスタンス化
+- 本番環境(`terraform/environments/prod/`)はprod固有の設定でインスタンス化
+
+**環境間の主な違い:**
+- リソース名のプレフィックス（`jigsaw-puzzle-dev-*` vs `jigsaw-puzzle-prod-*`）
+- CORS設定（devはlocalhost含む、prodはCloudFrontのみ）
+- API Gatewayのスロットリング設定（prodは高め）
+- ログ保持期間（devは7日、prodは30日）
 
 ### CORS設定
 
@@ -389,6 +458,7 @@ TypeScriptでのアクセス: `import.meta.env.VITE_API_BASE_URL`
 - `GET /puzzles/{puzzleId}?user_id={userId}` - パズル取得
 - `GET /users/{userId}/puzzles` - ユーザーのパズル一覧取得
 - `POST /puzzles/{puzzleId}/upload` - アップロードURL取得
+- `DELETE /puzzles/{puzzleId}?user_id={userId}` - パズル削除(DynamoDBとS3から削除)
 
 ### React 19とAWS Amplifyの互換性
 
@@ -429,6 +499,11 @@ TypeScriptでのアクセス: `import.meta.env.VITE_API_BASE_URL`
 
 6. **テスト実行**: `cd backend && uv run pytest`
 
-7. **Lambdaへデプロイ**: `./scripts/deploy-lambda.sh`
+7. **ローカルで動作確認後、developブランチにPR作成 → マージでdev環境に自動デプロイ**
 
-8. **インフラ更新**: `cd terraform/environments/dev && terraform apply`
+8. **本番リリース**: mainブランチにPR作成 → マージでprod環境に自動デプロイ
+
+**手動デプロイ（必要な場合）:**
+- Lambda: `./scripts/deploy-lambda.sh [dev|prod]`
+- Frontend: `./scripts/deploy-frontend.sh [dev|prod]`
+- Terraform: `cd terraform/environments/[dev|prod] && terraform apply`

@@ -2,10 +2,22 @@ name: Deploy Frontend
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main      # prod環境にデプロイ
+      - develop   # dev環境にデプロイ
     paths:
       - 'frontend/**'
+      - 'scripts/deploy-frontend.sh'
   workflow_dispatch:  # 手動実行も可能
+    inputs:
+      environment:
+        description: 'Environment to deploy (dev/prod)'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - prod
 
 # OIDCトークンの取得を許可
 permissions:
@@ -20,6 +32,23 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Determine environment
+        id: env
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            # 手動実行の場合は入力値を使用
+            echo "environment=${{ github.event.inputs.environment }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            # mainブランチはprod環境
+            echo "environment=prod" >> $GITHUB_OUTPUT
+          elif [ "${{ github.ref }}" = "refs/heads/develop" ]; then
+            # developブランチはdev環境
+            echo "environment=dev" >> $GITHUB_OUTPUT
+          else
+            # その他のブランチはdev環境（フォールバック）
+            echo "environment=dev" >> $GITHUB_OUTPUT
+          fi
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -41,16 +70,18 @@ jobs:
       - name: Deploy frontend (build, upload to S3, invalidate CloudFront)
         run: |
           chmod +x ./scripts/deploy-frontend.sh
-          ./scripts/deploy-frontend.sh
+          ./scripts/deploy-frontend.sh ${{ steps.env.outputs.environment }}
 
       - name: Deployment summary
         if: success()
         run: |
           echo "✅ Frontend deployment successful!"
+          echo "Environment: ${{ steps.env.outputs.environment }}"
           echo "All resource information retrieved from SSM Parameter Store"
 
       - name: Notify on failure
         if: failure()
         run: |
           echo "❌ Frontend deployment failed!"
+          echo "Environment: ${{ steps.env.outputs.environment }}"
           echo "Check the logs above for details"
