@@ -35,9 +35,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Terraform(IaC)
 - AWS(Lambda, API Gateway, DynamoDB, S3, CloudFront, Cognito)
 
+## プロジェクトルート
+
+プロジェクトルートディレクトリ: `/Users/akira.nagasawa/Documents/elith/code/jigsaw-puzzle`
+
 ## よく使うコマンド
 
-**重要**: 特に指定がない限り、すべてのコマンドはプロジェクトルート(`/Users/akira.nagasawa/Documents/elith/code/jigsaw-puzzle`)から実行してください。`cd` コマンドで示されている場合は、そのディレクトリに移動してからコマンドを実行します。
+**重要**: 特に指定がない限り、すべてのコマンドはプロジェクトルートから実行してください。`cd` コマンドで示されている場合は、そのディレクトリに移動してからコマンドを実行します。
 
 ### バックエンド開発
 
