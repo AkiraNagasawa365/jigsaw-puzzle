@@ -20,9 +20,7 @@ variable "allowed_origins" {
   description = "Allowed origins for CORS (S3 and Lambda)"
   type        = list(string)
   default     = [
-    # 本番環境では、実際のCloudFront URLに置き換えてください
-    # 例: "https://d1234567890abc.cloudfront.net"
-    # ローカル開発を本番環境に接続する場合のみ、localhostを追加
+    "https://d1tucwzc87xq8x.cloudfront.net"
   ]
 }
 
