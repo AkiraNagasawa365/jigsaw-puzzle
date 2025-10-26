@@ -225,6 +225,19 @@ Lambdaデプロイ時、`deploy-lambda.sh` スクリプトが `backend/app/` を
 - `AWS_REGION`: AWSリージョン(デフォルト: ap-northeast-1)
 - `ALLOWED_ORIGINS`: CORS許可オリジン(カンマ区切り)
 
+**SSM Parameter Store(動的な設定値の管理):**
+Terraformがデプロイ時に動的に生成される値をSSM Parameter Storeに保存します:
+- `/${project_name}/frontend/${environment}/api_base_url`: API Gateway エンドポイントURL
+- `/${project_name}/frontend/${environment}/resources`: フロントエンドデプロイに必要な全リソース情報(JSON)
+  - S3バケット名
+  - CloudFront Distribution ID
+  - CloudFront Domain Name
+  - API Base URL
+- `/${project_name}/backend/${environment}/env`: バックエンド環境変数(改行区切り)
+
+これらの値はGitHub Actionsワークフロー内で動的に取得され、デプロイスクリプトに渡されます。
+設定ファイル: `terraform/environments/{dev,prod}/frontend-config.tf`, `backend-config.tf`
+
 ### データフロー
 
 1. **パズル作成**:
